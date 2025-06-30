@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[ERNIE Bot](https://ernie.baidu.com/) | [AI Studio](https://aistudio.baidu.com/modelsoverview) | [Hugging Face](https://huggingface.co/baidu)
+[ERNIE Bot](https://ernie.baidu.com/) |  [🤗Hugging Face](https://huggingface.co/baidu) | [AI Studio](https://aistudio.baidu.com/modelsoverview) 
 
 📑 [Blog](https://yiyan.baidu.com/blog/posts/ernie4.5) | 📚 [Cookbook](./cookbook/) | 📑 [Paper](https://yiyan.baidu.com/blog/publication/)
 
@@ -83,7 +83,7 @@ We introduce ERNIE 4.5, a new family of large-scale multimodal models comprising
 </table>
 </div>
 
-_Note:All models (including pre-trained weights and inference code) have been released on [Hugging Face](https://huggingface.co/baidu), and [AI Studio](https://aistudio.baidu.com/index). Check our [blog](https://yiyan.baidu.com/blog/posts/ernie4.5) for more details.
+_Note: All models (including pre-trained weights and inference code) have been released on [🤗Hugging Face](https://huggingface.co/baidu), and [AI Studio](https://aistudio.baidu.com/index). Check our [blog](https://yiyan.baidu.com/blog/posts/ernie4.5) for more details._
 
 </br>
 
