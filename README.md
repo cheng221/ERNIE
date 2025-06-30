@@ -94,12 +94,6 @@ Our model family is characterized by three key innovations:
 
 3. **Modality-Specific Post-Training:** To meet the diverse requirements of real-world applications, we fine-tuned variants of the pre-trained model for specific modalities. Our LLMs are optimized for general-purpose language understanding and generation. The VLMs focuses on visuallanguage understanding and supports both thinking and non-thinking modes. Each model employed a combination of *Supervised Fine-tuning (SFT)*, *Direct Preference Optimization (DPO)* or a modified reinforcement learning method named *Unified Preference Optimization (UPO)* for post-training.
 
-All released models (including pretrained weights and inference code) are now fully open source. For relationships between different model architectures, see the diagram below. Additional technical details are available in the technical report.
-
-<div align="center">
-<img src="https://github.com/user-attachments/assets/44060b7a-6dbe-442b-80e8-b399cab1ce84" width="1080" height="636" >
-</div>
-
 </br>
 
 ## Performance and Benchmark Results
