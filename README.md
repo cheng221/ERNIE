@@ -140,7 +140,7 @@ In the non-thinking mode, ERNIE-4.5-VL exhibits outstanding proficiency in visua
 ### Performance of post-trained multimodal models in non-thinking mode
 
 <div align="center">
-<img src="https://yiyan.baidu.com/blog/posts/ernie4.5/vl_model_nonthinking_benchmark.png" style="max-width: 80%; height: auto;">
+<img src="https://github.com/user-attachments/assets/e0299715-eb40-4930-8bee-b5f9dd8fc010" style="max-width: 80%; height: auto;">
 </div>
 
 </br>
