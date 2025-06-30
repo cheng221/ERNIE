@@ -195,7 +195,7 @@ erniekit train examples/configs/ERNIE-4.5-0.3B/sft/run_sft_8k.yaml
 
 For detailed guides on installation, CLI usage, WebUI, multi-node training, and advanced features, please refer to [ERNIEKit Training Document](./docs/erniekit.md).
 
-**erniekit webui demo:**
+**ERNIEKit WebUI demo:**
 
 https://github.com/user-attachments/assets/6d44cb92-0826-42df-aa80-7656445e0f73
 
