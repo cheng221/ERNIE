@@ -1543,12 +1543,7 @@ class Ernie4_5_LMHead(nn.Layer):
             ]
         """
         if self.config.use_recompute_loss_fn or self.config.use_sparse_head_and_loss_fn:
-            out_tensors = (
-                (hidden_states, self.weight, self.bias)
-                if tensor_parallel_output is None
-                else (hidden_states, self.weight, self.bias, tensor_parallel_output)
-            )
-            return out_tensors
+            return (hidden_states, self.weight, self.bias, self.config.tie_word_embeddings)
 
         return calc_lm_head_logits(
             self.config, hidden_states, self.weight, self.bias, tensor_parallel_output, training=self.training
