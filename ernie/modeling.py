@@ -1542,6 +1542,9 @@ class Ernie4_5_LMHead(nn.Layer):
                     Logits tensor of shape [batch_size, seq_len, vocab_size]
             ]
         """
+        #  will enter this branch when:
+        # 1. use_recompute_loss_fn or use_sparse_head_and_loss_fn
+        # 2. dpo training
         if self.config.use_recompute_loss_fn or self.config.use_sparse_head_and_loss_fn:
             return (hidden_states, self.weight, self.bias, self.config.tie_word_embeddings)
 
