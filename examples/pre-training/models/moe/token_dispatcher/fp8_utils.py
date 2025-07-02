@@ -752,6 +752,7 @@ class ExpertsGroupGemmContiguousNode:
         custom_map,
         recompute_fwd_gate_up=False,
         dequant_input=False,
+        group=None,
         name="experts_group_gemm_contiguous_node",
     ):
         """
@@ -789,6 +790,7 @@ class ExpertsGroupGemmContiguousNode:
         self.o1 = None
         self.fp8_fused_ops_configs = custom_map.config.fp8_fused_ops_configs
         self.is_split_group_gemm = has_config(self.fp8_fused_ops_configs, "split_group_gemm")
+        self.group = group
 
     def reset_status(self):
         self.tokens_per_expert = None
@@ -820,15 +822,16 @@ class ExpertsGroupGemmContiguousNode:
         out = paddle.concat(tokens, axis=0)
         return out
 
-    def fwd_gate_up(self, x_bf16, expert_w1, num_expert, tokens_per_expert):
+    def fwd_gate_up(self, x, expert_w1, num_expert, tokens_per_expert, scale=None):
         """
         Forward pass for gate projection with contiguous memory layout.
 
         Args:
-            x_bf16 (Tensor): Input tensor in bfloat16 format
+            x (Tensor): Input tensor in bfloat16 or float8 format
             expert_w1 (List[Tensor]): List of expert weights for gate projection
             num_expert (int): Number of experts
             tokens_per_expert (List[int]): Token distribution across experts
+            scale (Tensor|None): Scale tensor for dequantization, optional.
 
         Returns:
             Tensor: Output of gate projection in bfloat16 format
@@ -859,8 +862,14 @@ class ExpertsGroupGemmContiguousNode:
         w1_t_quant = w1_t_quant.reshape([num_expert, -1, w1_t_quant.shape[-1]])
         w1_t_scale = w1_t_scale.reshape([num_expert, -1, w1_t_scale.shape[-1]])
 
-        if x_bf16 is None and self.dequant_input:
+        if x is None:
             x_fp8, x_scale = self.input_fp8, self.input_scale
+            assert x_fp8 is not None and x_scale is not None
+        elif scale is not None:
+            x_fp8, x_scale = x, scale
+            assert self.dequant_input, (
+                "If a scale is provided, it indicates that a2a is using fp8. Dequant_input must be enabled."
+            )
         else:
             x_fp8, x_scale = paddle.incubate.nn.functional.fp8.fp8_quant_blockwise(
                 x_bf16,
@@ -886,7 +895,7 @@ class ExpertsGroupGemmContiguousNode:
             self.input_fp8 = x_fp8
             self.input_scale = x_scale
         else:
-            self.input = x_bf16
+            self.input = x
         return o1
 
     def fwd_swiglu(self, o1):
@@ -1262,7 +1271,7 @@ class ExpertsGroupGemmContiguousNode:
                 )
 
     @paddle.no_grad()
-    def forward(self, hs_out, unzipped_probs, tokens_per_expert, origin_token_per_experts):
+    def forward(self, hs_out, unzipped_probs, tokens_per_expert, origin_token_per_experts, scale=None):
         self.origin_token_per_experts = origin_token_per_experts
         if hs_out.shape[0] == 0:
             o3 = paddle.zeros_like(hs_out)
@@ -1271,7 +1280,7 @@ class ExpertsGroupGemmContiguousNode:
         expert_w1 = [x.up_gate_proj.weight for x in self.custom_map.experts if x is not None]
         expert_w2 = [x.down_proj.weight for x in self.custom_map.experts if x is not None]
         num_expert = len(expert_w1)
-        o1 = self.fwd_gate_up(hs_out, expert_w1, num_expert, tokens_per_expert)
+        o1 = self.fwd_gate_up(hs_out, expert_w1, num_expert, tokens_per_expert, scale=scale)
         if not self.recompute_fwd_gate_up:
             self.o1 = o1
         o3, unzipped_probs = self.fwd_down(o1, unzipped_probs, expert_w2, num_expert)
@@ -1279,7 +1288,7 @@ class ExpertsGroupGemmContiguousNode:
         return o3
 
     @paddle.no_grad()
-    def backward(self, out_grad):
+    def backward(self, out_grad, a2a_async_fn=None):
         if out_grad.shape[0] == 0:
             dx = paddle.zeros_like(out_grad)
             probs_grad = paddle.zeros_like(self.unzipped_probs)
@@ -1310,6 +1319,9 @@ class ExpertsGroupGemmContiguousNode:
                             shape=expert.up_gate_proj.weight.shape, dtype=paddle.float32
                         )
 
+            if a2a_async_fn:
+                dx, task = a2a_async_fn(dx)
+                task.wait()
             return dx, probs_grad
 
         expert_w2 = [x.down_proj.weight for x in self.custom_map.experts if x is not None]
@@ -1331,19 +1343,39 @@ class ExpertsGroupGemmContiguousNode:
         else:
             input = self.input
 
-        # dw1
-        self.bwd_gate_up_weight(do1, input, expert_w1)
-        del input
+        if a2a_async_fn is None:
+            # dw1
+            self.bwd_gate_up_weight(do1, input, expert_w1)
+            del input
 
-        if not self.dequant_input:
-            self.input = None
-        # dx
-        dx = self.bwd_gate_up_input(do1, expert_w1)
+            if not self.dequant_input:
+                self.input = None
+            # dx
+            dx = self.bwd_gate_up_input(do1, expert_w1)
 
-        # release do1 and input
-        del do1
+            # release do1 and input
+            del do1
 
-        self.bwd_down_weight(out_grad, o2_s, expert_w2)
+            self.bwd_down_weight(out_grad, o2_s, expert_w2)
+        else:
+            # dx
+            dx = self.bwd_gate_up_input(do1, expert_w1)
+
+            dx, task = a2a_async_fn(dx)
+
+            # dw1
+            self.bwd_gate_up_weight(do1, input, expert_w1)
+            del input
+
+            if not self.dequant_input:
+                self.input = None
+
+            # release do1 and input
+            del do1
+
+            self.bwd_down_weight(out_grad, o2_s, expert_w2)
+            
+            task.wait()
 
         self.reset_status()
         return dx, probs_grad
@@ -1370,6 +1402,7 @@ class ExpertsGroupGemmWLCHNode(ExpertsGroupGemmContiguousNode):
         custom_map,
         recompute_fwd_gate_up=False,
         dequant_input=False,
+        group=None,
         name="experts_group_gemm_WLCH_node",
     ):
         """
@@ -1390,6 +1423,7 @@ class ExpertsGroupGemmWLCHNode(ExpertsGroupGemmContiguousNode):
             custom_map,
             recompute_fwd_gate_up=recompute_fwd_gate_up,
             dequant_input=dequant_input,
+            group=group,
             name=name,
         )
 
