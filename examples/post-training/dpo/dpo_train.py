@@ -166,6 +166,13 @@ def main():
 
     logger.info("Start to load model ...")
 
+    # Detect torch model.
+    config_path = os.path.join(model_args.model_name_or_path, "config.json")
+    with open(config_path, "r", encoding="utf-8") as f:
+        config_dict = json.load(f)
+    if "torch_dtype" in config_dict:
+        raise ValueError("Unsupported weight format: Torch weights are not compatible with Paddle model currently.")
+
     # fuse_softmax_mask only support for rocm.
     if not paddle.is_compiled_with_rocm():
         if model_args.fuse_softmax_mask:
