@@ -176,6 +176,7 @@ class ErnieMoEConfig(PretrainedConfig):
         use_linear_residual_norm_recompute: bool = False,
         use_rms_qkv_recompute: bool = False,
         use_combine_before_a2a=False,
+        use_quant_before_a2a=False,
         **kwargs,
     ):
         if "tie_word_embeddings" not in kwargs:
@@ -257,6 +258,10 @@ class ErnieMoEConfig(PretrainedConfig):
         self.decoderlayer_act_offload_settings = decoderlayer_act_offload_settings
         self.loss_subbatch_seqlen = loss_subbatch_seqlen
         self.use_combine_before_a2a = use_combine_before_a2a
+        
+        # Fuse activation quantization into the dispatch kernel, using FP8 for All-to-All (A2A) communication.
+        # Additionally, overlap the A2A operation with weight gradient computation during backward propagation.
+        self.use_quant_before_a2a = use_quant_before_a2a
 
         default_fp8_configs = {
             "quant_scheme": "DelayedScaling",
