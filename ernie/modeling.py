@@ -43,7 +43,7 @@ from .distributed import (
     parallel_matmul,
     sequence_parallel_sparse_mask_labels,
 )
-from .fusion_ops import Linear, fused_rope, fused_swiglu, fusion_flash_attention
+from .fusion_ops import Linear, fused_rope, fused_swiglu, fusion_flash_attention, fused_rms_norm_ext
 from .refined_recompute.utils import RefinedRecomputeFunction
 from .sequence_parallel_utils import ScatterOp
 
@@ -250,9 +250,8 @@ class RMSNorm(nn.Layer):
                 3. Scale by learned weight parameter
             - Maintains original dtype for numerical stability during computation
         """
-        # TODO: use fused_rms_norm_ext if paddle supports it
-        # if self.config.fuse_rms_norm:
-        #     return fused_rms_norm_ext(hidden_states, self.weight, self.variance_epsilon)[0].astype(self.weight.dtype)
+        if self.config.fuse_rms_norm:
+            return fused_rms_norm_ext(hidden_states, self.weight, self.variance_epsilon)[0].astype(self.weight.dtype)
         with paddle.amp.auto_cast(False):
             variance = hidden_states.astype("float32").pow(2).mean(-1, keepdim=True)
             hidden_states = paddle.rsqrt(variance + self.variance_epsilon) * hidden_states
