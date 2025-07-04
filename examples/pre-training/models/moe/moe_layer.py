@@ -96,12 +96,11 @@ class Fp8MoeGateDispatchAndQuant(paddle.autograd.PyLayer):
             )
         assert out_fp8.shape[0] == scale.shape[0]
 
+        out_fp8.stop_gradient = False
         combine_weights.stop_gradient = False
         scatter_index.stop_gradient = True
         expert_offset.stop_gradient = True
         expert_id.stop_gradient = True
-
-        out_fp8.stop_gradient = True
         scale.stop_gradient = True
 
         ctx.k = k
