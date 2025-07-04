@@ -966,7 +966,7 @@ class Ernie4_5_PretrainedModel(PretrainedModel):
                             moe_num_experts = (
                                 sum(config.moe_num_experts) if config.multimodel_experts else config.moe_num_experts
                             )
-                            if moe_num_experts > 0 and "shared_experts" not in key:
+                            if moe_num_experts and moe_num_experts > 0 and "shared_experts" not in key:
                                 for expert_id in range(moe_num_experts):
                                     _key = key.replace("layers.0.mlp", f"layers.{i}.mlp.experts.{expert_id}")
                                     if not moe_in_mp:
