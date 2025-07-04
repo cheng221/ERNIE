@@ -96,11 +96,6 @@ class Fp8MoeGateDispatchAndQuant(paddle.autograd.PyLayer):
             )
         assert out_fp8.shape[0] == scale.shape[0]
 
-        # Use BF16 fake tensor to maintain the computation graph.
-        # The reason is that the actual output of this operator is fp8,
-        # but the gradient of this output is bf16.
-        fake_out = paddle.empty(out_fp8.shape, x.dtype)
-        fake_out.stop_gradient = False
         combine_weights.stop_gradient = False
         scatter_index.stop_gradient = True
         expert_offset.stop_gradient = True
@@ -118,13 +113,12 @@ class Fp8MoeGateDispatchAndQuant(paddle.autograd.PyLayer):
         ctx.has_corr_bias = corr_bias is not None
 
         return (
-            fake_out,
+            out_fp8,
             combine_weights,
             scatter_index,
             expert_offset,
             expert_id,
             {
-                "fp8_data": out_fp8,
                 "scale": scale,
             },
         )
@@ -580,9 +574,7 @@ class MOELayer(nn.Layer):
 
     def gate_distpach_and_quant(self, input, token_type_ids):
         """
-        Quantization is performed within the op, but since the output of the
-        dispatched op is in FP8, while the backward gradient is in BF16, a BF16
-        fake output is generated to maintain the computational graph.
+        Quantization is performed within the op
         """
         assert not self.config.use_ep_comm_overlap, "ep_comm_overlap is not supported"
         
@@ -606,7 +598,7 @@ class MOELayer(nn.Layer):
             corr_bias = self.moe_statics.e_score_correction_bias[0].detach() if self.use_correction_bias else None
 
             (
-                fake_bf16_dispatched_input, # Ensures computational graph integrity by preventing gradient-output type mismatch.
+                dispatched_input,
                 combine_weights_unnorm,
                 scatter_index,
                 dispatch_mask,
@@ -617,7 +609,7 @@ class MOELayer(nn.Layer):
         dispatch_mask = paddle.diff(F.pad(dispatch_mask, (1, 0)))
         if self.use_correction_bias:
             self.moe_statics.expert_usage[0] += dispatch_mask.detach()
-        fake_bf16_dispatched_input.stop_gradient = False
+        dispatched_input.stop_gradient = False
         combine_weights_unnorm.stop_gradient = False
         scatter_index.stop_gradient = True
         dispatch_mask.stop_gradient = True
@@ -638,7 +630,7 @@ class MOELayer(nn.Layer):
             )
         else:
             combine_weights = combine_weights_unnorm
-        combine_weights = combine_weights.cast(fake_bf16_dispatched_input.dtype)
+        combine_weights = combine_weights.cast("bfloat16")
 
         def reshape_for_a2a(tensor):
             return tensor.reshape(
@@ -649,13 +641,12 @@ class MOELayer(nn.Layer):
                 ]
             )
 
-        fake_bf16_dispatched_input = reshape_for_a2a(fake_bf16_dispatched_input)
-        fp8_dispatched_handle["fp8_data"] = reshape_for_a2a(fp8_dispatched_handle["fp8_data"])
+        dispatched_input = reshape_for_a2a(dispatched_input)
         fp8_dispatched_handle["scale"] = reshape_for_a2a(fp8_dispatched_handle["scale"])
         dispatch_mask.stop_gradient = True
         scatter_index.stop_gradient = True
         return (
-            fake_bf16_dispatched_input,
+            dispatched_input,
             combine_weights,
             dispatch_mask,
             scatter_index,
@@ -1078,7 +1069,8 @@ class FP8FusedWLCHFunc(paddle.autograd.PyLayer):
 
         if quant_before_a2a:
             assert fp8_dispatched_handle is not None
-            hidden_states, scale = a2a_fn(fp8_dispatched_handle["fp8_data"], fp8_dispatched_handle["scale"])
+            assert hidden_states.dtype == paddle.float8_e4m3fn
+            hidden_states, scale = a2a_fn(hidden_states, fp8_dispatched_handle["scale"])
             scale = scale.reshape([-1, scale.shape[-1]])
         else:
             scale = None
