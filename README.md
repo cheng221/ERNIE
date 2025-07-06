@@ -8,6 +8,8 @@
 
 📑 [Blog](https://yiyan.baidu.com/blog/posts/ernie4.5) | 📚 [Cookbook](./cookbook/) | 📑 [Paper](https://yiyan.baidu.com/blog/publication/)  | 🛠️ [Training](./docs/erniekit.md)  | ⚡️ [Deploy](https://github.com/PaddlePaddle/FastDeploy)
 
+<a href="https://trendshift.io/repositories/14169" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14169" alt="PaddlePaddle%2FERNIE | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
 </div>
 
 ## Introduction to ERNIE 4.5
