@@ -671,7 +671,7 @@ def main():
 
     logger.info("Creating dataset successfully ...")
 
-    data_collator = partial(collate_fn, tokenizer=tokenizer, model_args=model_args, max_seq_len=data_args.max_seq_len)
+    data_collator = partial(collate_fn, tokenizer=tokenizer, model_args=model_args, max_seq_len=data_args.max_seq_len + model_config.num_nextn_predict_layers)
 
     if model_args.lora:
         logger.info("Start to wrap model with LoRA config ...")

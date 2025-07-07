@@ -120,7 +120,7 @@ def collate_fn(batch: List[List[Sequence]], tokenizer, model_args, max_seq_len: 
             - labels: Shifted labels for prediction
             - loss_mask: Mask for computing loss
     """
-    input_keys = ["input_ids", "labels", "loss_mask"]
+    input_keys = ["input_ids", "labels", "loss_mask", "nbatch_pack_offset"]
     if model_args.use_attn_mask_start_row_indices:
         input_keys.append("attn_mask_start_row_indices")
     else:
@@ -131,17 +131,25 @@ def collate_fn(batch: List[List[Sequence]], tokenizer, model_args, max_seq_len: 
         token_ids = [sum(original_token_ids, [])]
         loss_mask = [sum([seq.loss_mask for seq in batch_sequence], [])]
         labels = [sum([seq.labels for seq in batch_sequence], [])]
-
+        # each sequence end index
+        batch_sequence_len = [len(sequence) for sequence in original_token_ids]
+        nbatch_pack_offset = [0] * sum(batch_sequence_len)
+        prefix_sum = 0
+        for sequence_len in batch_sequence_len[:-1]:
+            prefix_sum += sequence_len
+            nbatch_pack_offset[prefix_sum-1] = 1
         # padding
         padded_token_ids = pad_batch_data(token_ids, pad_idx=tokenizer.pad_token_id, max_seq_len=max_seq_len)
         padded_labels = pad_batch_data(labels, pad_idx=tokenizer.pad_token_id, max_seq_len=max_seq_len)
         padded_loss_mask = pad_batch_data(loss_mask, pad_idx=0, max_seq_len=max_seq_len)
+        padded_nbatch_pack_offset = pad_batch_data([nbatch_pack_offset], pad_idx=0, max_seq_len=max_seq_len)
         padded_labels = np.where(padded_loss_mask == 1, padded_labels, -100)
         return_list.append(
             [
                 padded_token_ids,
                 padded_labels,
                 padded_loss_mask,
+                padded_nbatch_pack_offset
             ]
         )
 

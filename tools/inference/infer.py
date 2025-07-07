@@ -200,6 +200,7 @@ class Predictor:
             tensor_parallel_rank=self.tensor_parallel_rank,
             use_flash_attention=True,
             moe_group="dummy",
+            num_nextn_predict_layers=0,
         )
         self.model = Ernie4_5_MoeForCausalLM.from_pretrained(
             args.model_name_or_path,

@@ -73,10 +73,7 @@ def calc_lm_head_logits(config, hidden_states, weight, bias, tensor_parallel_out
             pass  # Nothing needs to be done.
         else:
             hidden_states = GatherOp.apply(hidden_states)
-            if config.num_nextn_predict_layers > 0:
-                max_sequence_length = config.max_sequence_length - config.num_nextn_predict_layers
-            else:
-                max_sequence_length = config.max_sequence_length
+            max_sequence_length = config.max_sequence_length
             hidden_states = hidden_states.reshape([-1, max_sequence_length, hidden_states.shape[-1]])
 
     if tensor_parallel_output is None:
@@ -721,10 +718,6 @@ class Ernie4_5_Attention(nn.Layer):
                 token_type_ids = ScatterOp.apply(token_type_ids)
                 token_type_ids.stop_gradient = True
             max_sequence_length = self.config.max_sequence_length
-            if self.config.num_nextn_predict_layers > 0:
-                max_sequence_length = self.config.max_sequence_length - self.config.num_nextn_predict_layers
-                if attn_mask_start_row_indices is not None:
-                    attn_mask_start_row_indices = attn_mask_start_row_indices[:, :, :max_sequence_length]
             bsz = hidden_states.shape[0] * self.config.tensor_parallel_degree // max_sequence_length
             q_len = max_sequence_length
         else:
