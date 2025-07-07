@@ -17,6 +17,7 @@ import argparse
 import json
 import os
 import time
+import shutil
 
 import paddle
 from paddleformers.mergekit import MergeConfig, MergeModel
@@ -112,13 +113,18 @@ def merge():
                 "tokenizer.model",
                 "tokenizer_config.json",
                 "special_tokens_map.json",
-                "config.json",
+                # "config.json",
             ]
-
         merge_config = MergeConfig(**config)
         mergekit = MergeModel(merge_config)
         logger_merge_config(merge_config, lora_merge)
         mergekit.merge_model()
+        src_file = os.path.join(args.model_name_or_path, "config.json")
+        dst_file = os.path.join(args.output_path, "config.json")
+        if os.path.isfile(src_file):
+            shutil.copy2(src_file, dst_file)
+        else:
+            logger.debug(f"Copy failed: 'config.json' not found in {src_path}")
         logger.info(f"***** Successfully finished merging LoRA model. Time cost: {time.time()-start} s *****")
     else:
         with open(args.mergekit_task_config, "r", encoding="utf-8") as f:
