@@ -124,7 +124,7 @@ def merge():
         if os.path.isfile(src_file):
             shutil.copy2(src_file, dst_file)
         else:
-            logger.debug(f"Copy failed: 'config.json' not found in {src_path}")
+            logger.debug(f"Copy failed: 'config.json' not found in {args.model_name_or_path}")
         logger.info(f"***** Successfully finished merging LoRA model. Time cost: {time.time()-start} s *****")
     else:
         with open(args.mergekit_task_config, "r", encoding="utf-8") as f:
