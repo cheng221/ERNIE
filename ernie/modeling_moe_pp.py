@@ -718,6 +718,7 @@ class MTPLayer(nn.Layer):
             hidden_states = tensor_list[0]
             inputs_embeds_cur_depth_list = tensor_list[1:]
 
+        max_seq_len = hidden_states.shape[1]
         if self.config.sequence_parallel:
             max_seq_len = hidden_states.shape[0] * self.config.tensor_parallel_degree
 

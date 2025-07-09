@@ -1245,11 +1245,10 @@ class Ernie4_5_Model(Ernie4_5_PretrainedModel):
                     position_ids_extra = position_ids[:, -self.config.num_nextn_predict_layers:]
                     position_ids = position_ids[:, : -self.config.num_nextn_predict_layers]
                     position_ids_ori = position_ids
-
+            
             if attention_mask is not None:
-                attention_mask_extra = attention_mask[:, :, -self.config.num_nextn_predict_layers:]
-                attention_mask = attention_mask[:, :, :-self.config.num_nextn_predict_layers]
-                attention_mask_ori = attention_mask
+                attention_mask_full = attention_mask.clone()
+                attention_mask = attention_mask[:, :, :-self.config.num_nextn_predict_layers, :-self.config.num_nextn_predict_layers]
             
             if attn_mask_start_row_indices is not None:
                 attn_mask_start_row_indices_extra = attn_mask_start_row_indices[:, :, -self.config.num_nextn_predict_layers:]
@@ -1337,9 +1336,9 @@ class Ernie4_5_Model(Ernie4_5_PretrainedModel):
                 )
 
                 if attention_mask is not None:
-                    attention_mask = paddle.concat(
-                        [attention_mask_ori[:, :, (depth + 1):], attention_mask_extra[:, :, :(depth + 1)]], axis=-1
-                    )
+                    b_num, h_num, q_num, k_num = attention_mask.shape
+                    attention_mask = attention_mask_full[:, :, (depth+1):(q_num+depth+1), (depth+1):(k_num+depth+1)]
+
                 if attn_mask_start_row_indices is not None:
                     attn_mask_start_row_indices = paddle.concat(
                         [attn_mask_start_row_indices_ori[:, :, (depth + 1):], attn_mask_start_row_indices_extra[:, :, :(depth + 1)]], axis=-1
