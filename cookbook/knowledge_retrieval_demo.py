@@ -148,7 +148,7 @@ def get_args() -> argparse.Namespace:
         if len(args.model_map) < 1:
             raise ValueError("model_map must contain at least one model configuration")
     except json.JSONDecodeError as e:
-        raise ValueError("Invalid JSON format for --model-map") from e
+        raise ValueError("Invalid JSON format for --model_map") from e
 
     return args
 
@@ -823,6 +823,14 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient, faiss_db_templa
             """\
 <center><font size=3>This demo is based on ERNIE models. \
 (本演示基于文心大模型实现。)</center>"""
+        )
+        gr.Markdown(
+            """\
+<center><font size=3>    <a href="https://ernie.baidu.com/">ERNIE Bot</a> | \
+<a href="https://github.com/PaddlePaddle/ERNIE">GitHub</a> | \
+<a href="https://huggingface.co/baidu">Hugging Face</a> | \
+<a href="https://aistudio.baidu.com/modelsoverview">BAIDU AI Studio</a> | \
+<a href="https://yiyan.baidu.com/blog/publication/">Technical Report</a></center>"""
         )
 
         chatbot = gr.Chatbot(label="ERNIE", type="messages")

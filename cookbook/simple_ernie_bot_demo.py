@@ -131,6 +131,9 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--qianfan_api_key", type=str, default="bce-v3/xxx", help="Web Search Service API key.", required=True
     )
+    parser.add_argument(
+        "--max_crawler_threads", type=int, default=10, help="The maximum number of concurrent crawler threads."
+    )
 
     args = parser.parse_args()
     try:
@@ -140,7 +143,7 @@ def get_args() -> argparse.Namespace:
         if len(args.model_map) < 1:
             raise ValueError("model_map must contain at least one model configuration")
     except json.JSONDecodeError as e:
-        raise ValueError("Invalid JSON format for --model-map") from e
+        raise ValueError("Invalid JSON format for --model_map") from e
     return args
 
 
@@ -292,6 +295,7 @@ class GradioEvents:
         model_name: str,
         files_url: list,
         search_state: bool,
+        max_crawler_threads: int,
         bot_client: BotClient,
         max_ref_char: int = 18000,
     ) -> dict:
@@ -308,6 +312,7 @@ class GradioEvents:
             model_name (str): Name of the model being used.
             files_url (list): List of uploaded file urls.
             search_state (bool): Whether to perform a search.
+            max_crawler_threads (int): Maximum number of concurrent crawler threads.
             bot_client (BotClient): An instance of BotClient.
             max_ref_char (int): Maximum number of characters allowed for references.
 
@@ -343,21 +348,26 @@ class GradioEvents:
 
         # Step 2: If a search is needed, obtain the corresponding query results
         if search_info_res.get("is_search", False) and search_info_res.get("query_list", []):
+            yield {"type": "search_result", "content": "🧐 努力搜索中... ✨"}
             search_result = bot_client.get_web_search_res(search_info_res["query_list"])
 
             max_search_result_char = max_ref_char - len(bot_client.cut_chinese_english(file_contents))
             complete_search_result = await GradioEvents.get_complete_search_content(
-                ref_file_num, search_result, bot_client, max_search_result_char
+                ref_file_num, search_result, max_crawler_threads, bot_client, max_search_result_char
             )
-            complete_ref = file_contents + "\n" + complete_search_result
+            complete_ref = file_contents + complete_search_result
 
-            query = ANSWER_PROMPT.format(
-                date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                reference=complete_ref,
-                context=conversation_str,
-                query=query,
-            )
-            yield {"type": "search_result", "content": complete_ref}
+            if complete_search_result:
+                query = ANSWER_PROMPT.format(
+                    date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    reference=complete_ref,
+                    context=conversation_str,
+                    query=query,
+                )
+                yield {"type": "search_result", "content": complete_ref}
+            else:
+                query += "\n" + file_contents
+                yield {"type": "search_result", "content": ""}
         else:
             query += "\n" + file_contents
 
@@ -393,6 +403,7 @@ class GradioEvents:
         model: str,
         file_url: list,
         search_state: bool,
+        max_crawler_threads: int,
         bot_client: BotClient,
     ) -> tuple:
         """
@@ -410,6 +421,7 @@ class GradioEvents:
             model (str): Name of the model being used.
             file_url (list): List of uploaded file urls.
             search_state (bool): Whether to perform a search.
+            max_crawler_threads (int): Maximum number of concurrent crawler threads.
             bot_client (BotClient): An instance of BotClient.
 
         Returns:
@@ -421,12 +433,21 @@ class GradioEvents:
         logging.info(f"User: {query}")
         # First yield the chatbot with user message
         chatbot.append({"role": "user", "content": query})
-        yield chatbot, None
+        yield chatbot, "🛠️ 正在解析问题意图，判断是否需要搜索... 🔍"
+        await asyncio.sleep(0.05)  # Wait to refresh
 
         response = ""
         search_result = None
         async for new_text in GradioEvents.chat_stream(
-            query, task_history, image_history, file_history, model, file_url, search_state, bot_client
+            query,
+            task_history,
+            image_history,
+            file_history,
+            model,
+            file_url,
+            search_state,
+            max_crawler_threads,
+            bot_client,
         ):
             if not isinstance(new_text, dict):
                 continue
@@ -460,6 +481,7 @@ class GradioEvents:
         model: str,
         file_url: list,
         search_state: bool,
+        max_crawler_threads: int,
         bot_client: BotClient,
     ) -> tuple:
         """
@@ -475,6 +497,7 @@ class GradioEvents:
             model (str): Name of the model being used.
             file_url (list): List of uploaded file urls.
             search_state (bool): Whether to perform a search.
+            max_crawler_threads (int): Maximum number of concurrent crawler threads.
             bot_client (Botclient): An instance of BotClient.
 
         Returns:
@@ -497,7 +520,16 @@ class GradioEvents:
         chatbot.pop(-1)
 
         async for chunk, search_result in GradioEvents.predict(
-            item[0], chatbot, task_history, image_history, file_history, model, file_url, search_state, bot_client
+            item[0],
+            chatbot,
+            task_history,
+            image_history,
+            file_history,
+            model,
+            file_url,
+            search_state,
+            max_crawler_threads,
+            bot_client,
         ):
             yield chunk, search_result
 
@@ -667,7 +699,11 @@ class GradioEvents:
 
     @staticmethod
     async def get_complete_search_content(
-        ref_file_num: int, search_results: list, bot_client: BotClient, max_search_results_char
+        ref_file_num: int,
+        search_results: list,
+        max_crawler_threads,
+        bot_client: BotClient,
+        max_search_results_char,
     ) -> str:
         """
         Combines and formats multiple search results into a single string.
@@ -676,6 +712,7 @@ class GradioEvents:
         Args:
             ref_file_num (int): Reference file number
             search_results (list): List of search results
+            max_crawler_threads (int): Maximum number of concurrent crawler threads
             bot_client (BotClient): Chatbot client instance
             max_search_results_char (int): Maximum character length of each search result
 
@@ -684,24 +721,44 @@ class GradioEvents:
         """
         results = []
         crawl_utils = CrawlUtils()
+
+        items_to_crawl = []
         for search_res in search_results:
             for item in search_res:
-                new_content = await crawl_utils.get_webpage_text(item["url"])
-                if not new_content:
-                    continue
-                item_text = "Title: {title} \nURL: {url} \nContent:\n{content}\n".format(
-                    title=item["title"], url=item["url"], content=new_content
-                )
+                items_to_crawl.append(item)
 
-                # Truncate the search result to max_search_results_char characters
-                search_res_words = bot_client.cut_chinese_english(item_text)
-                res_words = bot_client.cut_chinese_english("".join(results))
-                if len(search_res_words) + len(res_words) > max_search_results_char:
-                    break
+        # Create a semaphore to limit concurrent crawls
+        semaphore = asyncio.Semaphore(max_crawler_threads)
 
-                results.append(
-                    f"参考资料[{len(results) + 1 + ref_file_num}]:\n" + f"资料来源：素材检索\n{item_text}\n"
-                )
+        async def crawl_with_semaphore(url):
+            async with semaphore:
+                return await crawl_utils.get_webpage_text(url)
+
+        # Crawl all webpages with limited concurrency
+        crawl_tasks = [crawl_with_semaphore(item["url"]) for item in items_to_crawl]
+        crawled_contents = await asyncio.gather(*crawl_tasks, return_exceptions=True)
+
+        # Process crawled contents
+        for item, new_content in zip(items_to_crawl, crawled_contents):
+            if not new_content or isinstance(new_content, Exception):
+                continue
+
+            item_text = "Title: {title} \nURL: {url} \nContent:\n{content}\n".format(
+                title=item["title"], url=item["url"], content=new_content
+            )
+
+            # Truncate the search result to max_search_results_char characters
+            search_res_words = bot_client.cut_chinese_english(item_text)
+            res_words = bot_client.cut_chinese_english("".join(results))
+            if len(res_words) >= max_search_results_char:
+                break
+            elif len(search_res_words) + len(res_words) > max_search_results_char:
+                max_char = max_search_results_char - len(res_words)
+                print(f"max_char: {max_char}\n")
+                search_res_words = search_res_words[:max_char]
+                item_text = "".join(search_res_words)
+
+            results.append(f"\n参考资料[{len(results) + 1 + ref_file_num}]:\n" + f"资料来源：素材检索\n{item_text}\n")
 
         return "".join(results)
 
@@ -754,6 +811,14 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
 <center><font size=3>This demo is based on ERNIE models. \
 (本演示基于文心大模型实现。)</center>"""
         )
+        gr.Markdown(
+            """\
+<center><font size=3>    <a href="https://ernie.baidu.com/">ERNIE Bot</a> | \
+<a href="https://github.com/PaddlePaddle/ERNIE">GitHub</a> | \
+<a href="https://huggingface.co/baidu">Hugging Face</a> | \
+<a href="https://aistudio.baidu.com/modelsoverview">BAIDU AI Studio</a> | \
+<a href="https://yiyan.baidu.com/blog/publication/">Technical Report</a></center>"""
+        )
 
         chatbot = gr.Chatbot(label="ERNIE", elem_classes="control-height", type="messages")
 
@@ -781,6 +846,7 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
         image_history = gr.State({})
         file_history = gr.State({})
         model_name = gr.State(next(iter(args.model_map.keys())))
+        max_crawler_threads = gr.State(args.max_crawler_threads)
 
         search_check.change(fn=GradioEvents.search_toggle_state, inputs=search_check, outputs=search_result)
 
@@ -788,14 +854,34 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
         regenerate_with_clients = partial(GradioEvents.regenerate, bot_client=bot_client)
         query.submit(
             predict_with_clients,
-            inputs=[query, chatbot, task_history, image_history, file_history, model_name, file_btn, search_check],
+            inputs=[
+                query,
+                chatbot,
+                task_history,
+                image_history,
+                file_history,
+                model_name,
+                file_btn,
+                search_check,
+                max_crawler_threads,
+            ],
             outputs=[chatbot, search_result],
             show_progress=True,
         )
         query.submit(GradioEvents.reset_user_input, [], [query])
         submit_btn.click(
             predict_with_clients,
-            inputs=[query, chatbot, task_history, image_history, file_history, model_name, file_btn, search_check],
+            inputs=[
+                query,
+                chatbot,
+                task_history,
+                image_history,
+                file_history,
+                model_name,
+                file_btn,
+                search_check,
+                max_crawler_threads,
+            ],
             outputs=[chatbot, search_result],
             show_progress=True,
         )
@@ -807,7 +893,16 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
         )
         regen_btn.click(
             regenerate_with_clients,
-            inputs=[chatbot, task_history, image_history, file_history, model_name, file_btn, search_check],
+            inputs=[
+                chatbot,
+                task_history,
+                image_history,
+                file_history,
+                model_name,
+                file_btn,
+                search_check,
+                max_crawler_threads,
+            ],
             outputs=[chatbot, search_result],
             show_progress=True,
         )
