@@ -62,7 +62,7 @@ def get_attr(layer, name):
         return get_attr(layer._layer, name)
 
 
-def parse_args(args):
+def parse_args(args, mtp_enable=False):
     """
     Parses input arguments and converts them into model-ready format.
 
@@ -87,14 +87,23 @@ def parse_args(args):
             All returned tensors have stop_gradient=True.
     """
     if isinstance(args, tuple):
+        if not mtp_enable:
+            nbatch_pack_offset = None
+            
         if len(args) == 4:
             hidden_states, attention_mask, position_ids, nbatch_pack_offset = args
-        if len(args) == 3:
-            hidden_states, attention_mask, nbatch_pack_offset = args
-            position_ids = None
+        elif len(args) == 3:
+            if mtp_enable:
+                hidden_states, attention_mask, nbatch_pack_offset = args
+                position_ids = None
+            else:
+                hidden_states, attention_mask, position_ids = args
         elif len(args) == 2:
-            hidden_states, nbatch_pack_offset = args
-            attention_mask = None
+            if mtp_enable:
+                hidden_states, nbatch_pack_offset = args
+                attention_mask = None
+            else:
+                hidden_states, attention_mask = args
             position_ids = None
         elif len(args) == 1:
             (hidden_states,) = args
@@ -309,7 +318,7 @@ class Ernie4_5_EmbeddingPipe(nn.Layer):
             - Automatically generates position_ids if not provided
             - Supports sequence parallel redistribution of embeddings
         """
-        input_ids, attention_mask, position_ids, nbatch_pack_offset = parse_args(args)
+        input_ids, attention_mask, position_ids, nbatch_pack_offset = parse_args(args, self.config.num_nextn_predict_layers > 0)
         input_ids.stop_gradient = True
         emb = self.embed_tokens(input_ids).astype(self.embed_tokens.weight.dtype)
         if self.config.num_nextn_predict_layers > 0:
@@ -479,7 +488,7 @@ class Ernie4_5_DecoderLayerPipe(Ernie4_5_DecoderLayer):
         else:
             res = None
 
-        hidden_states, attention_mask, position_ids, nbatch_pack_offset = parse_args(args)
+        hidden_states, attention_mask, position_ids, nbatch_pack_offset = parse_args(args, self.config.num_nextn_predict_layers > 0)
 
         max_seq_len = hidden_states.shape[1]
         if self.config.sequence_parallel:
@@ -704,7 +713,7 @@ class MTPLayer(nn.Layer):
 
     def forward_impl(self, *args):
         """forward_impl"""
-        _, attention_mask, position_ids, nbatch_pack_offset = parse_args(args)
+        _, attention_mask, position_ids, nbatch_pack_offset = parse_args(args, self.config.num_nextn_predict_layers > 0)
 
         if self.config.enable_mtp_magic_send:
             assert isinstance(args, tuple), "Input for MTPLayer must be tuple"
