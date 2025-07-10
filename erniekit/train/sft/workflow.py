@@ -278,10 +278,10 @@ def run_sft(
     model_config.moe_z_loss_lambda = model_args.moe_z_loss_lambda
     model_config.moe_use_hard_gate = model_args.moe_use_hard_gate
     model_config.moe_multimodal_dispatch_use_allgather = model_args.moe_multimodal_dispatch_use_allgather
+    model_config.num_nextn_predict_layers = model_args.num_nextn_predict_layers
     model_config.hidden_dropout_prob = finetuning_args.hidden_dropout_prob
     model_config.attention_probs_dropout_prob = finetuning_args.attention_probs_dropout_prob
     model_config.num_acc_steps = finetuning_args.gradient_accumulation_steps
-    model_config.num_nextn_predict_layers = finetuning_args.num_nextn_predict_layers
     model_config.multi_token_pred_lambda = finetuning_args.multi_token_pred_lambda
     model_config.use_recompute_mtp = finetuning_args.use_recompute_mtp
     if model_args.moe_use_aux_free is False:

@@ -1247,7 +1247,7 @@ class Ernie4_5_Model(Ernie4_5_PretrainedModel):
                     position_ids_ori = position_ids
             
             if attention_mask is not None:
-                attention_mask_full = attention_mask.clone()
+                attention_mask_full = attention_mask
                 attention_mask = attention_mask[:, :, :-self.config.num_nextn_predict_layers, :-self.config.num_nextn_predict_layers]
             
             if attn_mask_start_row_indices is not None:
@@ -1336,8 +1336,8 @@ class Ernie4_5_Model(Ernie4_5_PretrainedModel):
                 )
 
                 if attention_mask is not None:
-                    b_num, h_num, q_num, k_num = attention_mask.shape
-                    attention_mask = attention_mask_full[:, :, (depth+1):(q_num+depth+1), (depth+1):(k_num+depth+1)]
+                    b, h, seqlen, seqlen = attention_mask.shape
+                    attention_mask = attention_mask_full[:, :, (depth+1):(seqlen+depth+1), (depth+1):(seqlen+depth+1)]
 
                 if attn_mask_start_row_indices is not None:
                     attn_mask_start_row_indices = paddle.concat(

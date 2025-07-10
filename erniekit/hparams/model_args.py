@@ -211,6 +211,10 @@ class ModelArguments:
             )
         },
     )
+    num_nextn_predict_layers: int = field(
+        default=0, 
+        metadata={"help": "Number of nextn predict layers."}
+    )
 
     def __post_init__(self):
         if self.fine_tuning.lower() == "LoRA".lower():
