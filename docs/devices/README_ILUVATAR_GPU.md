@@ -143,7 +143,7 @@ export LD_PRELOAD=/usr/local/corex/lib64/libcuda.so.1
 
 export FLAGS_embedding_deterministic=1
 
-model_path="ERNIE-45-Lite"
+model_path="ERNIE-4.5-21B-A3B-Paddl"
 task="sft_lora_8k"
 paddle_log_dir="${model_path}_${task}_log"
 vdl_log_dir="${model_path}_${task}_vdl"
@@ -194,7 +194,7 @@ python3 -m paddle.distributed.launch \
     --amp_custom_white_list "lookup_table" "lookup_table_v2" "flash_attn" "matmul" "matmul_v2" "fused_gemm_epilogue" \
     --amp_custom_black_list "reduce_sum" "softmax_with_cross_entropy" "c_softmax_with_cross_entropy" "elementwise_div" "sin" "cos" \
     --disable_tqdm True \
-    --recompute 0 \
+    --recompute 1 \
     --offload_optim 0 \
     --recompute_granularity "full" \
     --dataloader_num_workers 1 \
