@@ -143,7 +143,7 @@ export LD_PRELOAD=/usr/local/corex/lib64/libcuda.so.1
 
 export FLAGS_embedding_deterministic=1
 
-model_path="ERNIE-4.5-21B-A3B-Paddl"
+model_path="ERNIE-4.5-21B-A3B-Paddle"
 task="sft_lora_8k"
 paddle_log_dir="${model_path}_${task}_log"
 vdl_log_dir="${model_path}_${task}_vdl"
