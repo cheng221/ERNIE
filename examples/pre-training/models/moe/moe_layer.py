@@ -977,6 +977,7 @@ class MOELayer(nn.Layer):
                     dequant_input=("dequant_input" in self.config.fp8_mem_configs)
                     and self.config.fp8_mem_configs["dequant_input"],
                     quant_before_a2a=use_quant_before_a2a,
+                    async_a2a=self.config.use_async_a2a,
                     is_first_fwd=not framework._dygraph_tracer()._has_grad,
                     group=self.group,
                     fp8_dispatched_handle=fp8_dispatched_handle,
@@ -1056,6 +1057,7 @@ class FP8FusedWLCHFunc(paddle.autograd.PyLayer):
         recompute_fwd_gate_up=False,
         dequant_input=False,
         quant_before_a2a=False,
+        async_a2a=False,
         is_first_fwd=False,
         group=None,
         fp8_dispatched_handle=None,
@@ -1068,6 +1070,7 @@ class FP8FusedWLCHFunc(paddle.autograd.PyLayer):
         )
         ctx.group = group
         ctx.quant_before_a2a = quant_before_a2a
+        ctx.async_a2a = async_a2a
         num_local_experts = custom_map.num_local_experts
         
         def a2a_fn(input_fp8, input_scale):
@@ -1094,13 +1097,15 @@ class FP8FusedWLCHFunc(paddle.autograd.PyLayer):
 
     @staticmethod
     def backward(ctx, output_grad):
-        def a2a_async_fn(input):
-            return AlltoAll.apply(input, ctx.group, sync_op=False)
+        if not ctx.quant_before_a2a:
+            return ctx.node.backward(output_grad)
 
-        if ctx.quant_before_a2a:
+        if ctx.async_a2a:
+            a2a_async_fn = lambda input: AlltoAll.apply(input, ctx.group, sync_op=True)
             return ctx.node.backward(output_grad, a2a_async_fn=a2a_async_fn)
         else:
-            return ctx.node.backward(output_grad, a2a_async_fn=None)
+            dx, probs_grad = ctx.node.backward(output_grad)
+            return AlltoAll.apply(dx, ctx.group), probs_grad
 
 
 class MlpNode:
