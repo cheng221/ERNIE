@@ -102,10 +102,21 @@ def get_args() -> argparse.Namespace:
     """
     parser = ArgumentParser(description="ERNIE models web chat demo.")
 
-    parser.add_argument("--server-port", type=int, default=8666, help="Demo server port.")
-    parser.add_argument("--server-name", type=str, default="0.0.0.0", help="Demo server name.")
-    parser.add_argument("--max_char", type=int, default=20000, help="Maximum character limit for messages.")
-    parser.add_argument("--max_retry_num", type=int, default=3, help="Maximum retry number for request.")
+    parser.add_argument(
+        "--server-port", type=int, default=8666, help="Demo server port."
+    )
+    parser.add_argument(
+        "--server-name", type=str, default="0.0.0.0", help="Demo server name."
+    )
+    parser.add_argument(
+        "--max_char",
+        type=int,
+        default=20000,
+        help="Maximum character limit for messages.",
+    )
+    parser.add_argument(
+        "--max_retry_num", type=int, default=3, help="Maximum retry number for request."
+    )
     parser.add_argument(
         "--model_map",
         type=str,
@@ -129,10 +140,23 @@ def get_args() -> argparse.Namespace:
         help="Web Search Service URL.",
     )
     parser.add_argument(
-        "--qianfan_api_key", type=str, default="bce-v3/xxx", help="Web Search Service API key.", required=True
+        "--qianfan_api_key",
+        type=str,
+        default="bce-v3/xxx",
+        help="Web Search Service API key.",
+        required=True,
     )
     parser.add_argument(
-        "--max_crawler_threads", type=int, default=10, help="The maximum number of concurrent crawler threads."
+        "--max_crawler_threads",
+        type=int,
+        default=10,
+        help="The maximum number of concurrent crawler threads.",
+    )
+    parser.add_argument(
+        "--concurrency_limit", type=int, default=10, help="Default concurrency limit."
+    )
+    parser.add_argument(
+        "--max_queue_size", type=int, default=50, help="Maximum queue size for request."
     )
 
     args = parser.parse_args()
@@ -159,7 +183,9 @@ class GradioEvents:
     """
 
     @staticmethod
-    def get_history_conversation(task_history: list, image_history: dict, file_history: dict) -> tuple:
+    def get_history_conversation(
+        task_history: list, image_history: dict, file_history: dict
+    ) -> tuple:
         """
         Constructs complete conversation history from stored components including text messages,
         attached files and images. Processes each dialogue turn by combining the raw query/response
@@ -186,7 +212,12 @@ class GradioEvents:
             if idx in image_history:
                 content = []
                 for image_url in image_history[idx]:
-                    content.append({"type": "image_url", "image_url": {"url": GradioEvents.get_image_url(image_url)}})
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": GradioEvents.get_image_url(image_url)},
+                        }
+                    )
                 content.append({"type": "text", "text": query_h})
                 conversation.append({"role": "user", "content": content})
             else:
@@ -195,7 +226,9 @@ class GradioEvents:
         return conversation, conversation_str
 
     @staticmethod
-    def get_search_query(conversation: list, model_name: str, bot_client: BotClient) -> list:
+    def get_search_query(
+        conversation: list, model_name: str, bot_client: BotClient
+    ) -> list:
         """
         Processes conversation history to generate search queries by sending the conversation context
         to the model and parsing its JSON response. Handles model output validation and extracts
@@ -263,9 +296,12 @@ class GradioEvents:
         for file_url in files_url:
             extionsion = "." + file_url.split(".")[-1]
             if extionsion in TEXT_FILE_TYPE and (
-                len(file_history) == 0 or file_url not in list(file_history.values())[-1]
+                len(file_history) == 0
+                or file_url not in list(file_history.values())[-1]
             ):
-                file_history[diologue_turn] = file_history.get(diologue_turn, []) + [file_url]
+                file_history[diologue_turn] = file_history.get(diologue_turn, []) + [
+                    file_url
+                ]
                 file_name = file_url.split("/")[-1]
                 file_contents_words = bot_client.cut_chinese_english(file_contents)
 
@@ -276,14 +312,25 @@ class GradioEvents:
                         + f"用户上传\n{file_name}\n{GradioEvents.get_file_text(file_url)}\n"
                     )
                     file_content_words = bot_client.cut_chinese_english(file_content)
-                    max_char = min(len(file_content_words), max_file_char - len(file_contents_words))
+                    max_char = min(
+                        len(file_content_words),
+                        max_file_char - len(file_contents_words),
+                    )
                     file_content_words = file_content_words[:max_char]
                     file_contents += "".join(file_content_words) + "\n"
             elif extionsion in IMAGE_FILE_TYPE and (
-                len(image_history) == 0 or file_url not in list(image_history.values())[-1]
+                len(image_history) == 0
+                or file_url not in list(image_history.values())[-1]
             ):
-                image_history[diologue_turn] = image_history.get(diologue_turn, []) + [file_url]
-                input_content.append({"type": "image_url", "image_url": {"url": GradioEvents.get_image_url(file_url)}})
+                image_history[diologue_turn] = image_history.get(diologue_turn, []) + [
+                    file_url
+                ]
+                input_content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": GradioEvents.get_image_url(file_url)},
+                    }
+                )
         return input_content, file_contents, ref_file_num
 
     @staticmethod
@@ -329,31 +376,50 @@ class GradioEvents:
         search_info_res = {}
         if search_state:
             search_info_message = SEARCH_INFO_PROMPT.format(
-                date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"), context=conversation_str, query=query
+                date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                context=conversation_str,
+                query=query,
             )
             search_conversation = [{"role": "user", "content": search_info_message}]
-            search_info_res = GradioEvents.get_search_query(search_conversation, model_name, bot_client)
+            search_info_res = GradioEvents.get_search_query(
+                search_conversation, model_name, bot_client
+            )
             if search_info_res is None:
                 search_info_res = {"is_search": True, "query_list": [query]}
 
         # Process files
         diologue_turn = len(task_history)
-        if search_info_res.get("is_search", False) and search_info_res.get("query_list", []):
+        if search_info_res.get("is_search", False) and search_info_res.get(
+            "query_list", []
+        ):
             max_file_char = max_ref_char // 2
         else:
             max_file_char = max_ref_char
         input_content, file_contents, ref_file_num = GradioEvents.process_files(
-            diologue_turn, files_url, file_history, image_history, bot_client, max_file_char
+            diologue_turn,
+            files_url,
+            file_history,
+            image_history,
+            bot_client,
+            max_file_char,
         )
 
         # Step 2: If a search is needed, obtain the corresponding query results
-        if search_info_res.get("is_search", False) and search_info_res.get("query_list", []):
+        if search_info_res.get("is_search", False) and search_info_res.get(
+            "query_list", []
+        ):
             yield {"type": "search_result", "content": "🧐 努力搜索中... ✨"}
             search_result = bot_client.get_web_search_res(search_info_res["query_list"])
 
-            max_search_result_char = max_ref_char - len(bot_client.cut_chinese_english(file_contents))
+            max_search_result_char = max_ref_char - len(
+                bot_client.cut_chinese_english(file_contents)
+            )
             complete_search_result = await GradioEvents.get_complete_search_content(
-                ref_file_num, search_result, max_crawler_threads, bot_client, max_search_result_char
+                ref_file_num,
+                search_result,
+                max_crawler_threads,
+                bot_client,
+                max_search_result_char,
             )
             complete_ref = file_contents + complete_search_result
 
@@ -560,7 +626,15 @@ class GradioEvents:
         GradioEvents.gc()
 
         reset_result = namedtuple(
-            "reset_result", ["chatbot", "task_history", "image_history", "file_history", "file_btn", "search_result"]
+            "reset_result",
+            [
+                "chatbot",
+                "task_history",
+                "image_history",
+                "file_history",
+                "file_btn",
+                "search_result",
+            ],
         )
         return reset_result(
             [],  # clear chatbot
@@ -758,7 +832,10 @@ class GradioEvents:
                 search_res_words = search_res_words[:max_char]
                 item_text = "".join(search_res_words)
 
-            results.append(f"\n参考资料[{len(results) + 1 + ref_file_num}]:\n" + f"资料来源：素材检索\n{item_text}\n")
+            results.append(
+                f"\n参考资料[{len(results) + 1 + ref_file_num}]:\n"
+                + f"资料来源：素材检索\n{item_text}\n"
+            )
 
         return "".join(results)
 
@@ -820,15 +897,21 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
 <a href="https://yiyan.baidu.com/blog/publication/">Technical Report</a></center>"""
         )
 
-        chatbot = gr.Chatbot(label="ERNIE", elem_classes="control-height", type="messages")
+        chatbot = gr.Chatbot(
+            label="ERNIE", elem_classes="control-height", type="messages"
+        )
 
-        search_result = gr.Textbox(label="Search Result", lines=10, max_lines=10, visible=False)
+        search_result = gr.Textbox(
+            label="Search Result", lines=10, max_lines=10, visible=False
+        )
 
         with gr.Row():
             search_check = gr.Checkbox(label="🌐 Search the web(联网搜索)")
 
         with gr.Row():
-            query = gr.Textbox(label="Input", lines=1, scale=6, elem_classes="input-textbox")
+            query = gr.Textbox(
+                label="Input", lines=1, scale=6, elem_classes="input-textbox"
+            )
             file_btn = gr.File(
                 label="File upload (Accepted formats: PNG, JPEG, JPG, PDF, TXT, MD, DOC, DOCX)",
                 scale=4,
@@ -848,10 +931,16 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
         model_name = gr.State(next(iter(args.model_map.keys())))
         max_crawler_threads = gr.State(args.max_crawler_threads)
 
-        search_check.change(fn=GradioEvents.search_toggle_state, inputs=search_check, outputs=search_result)
+        search_check.change(
+            fn=GradioEvents.search_toggle_state,
+            inputs=search_check,
+            outputs=search_result,
+        )
 
         predict_with_clients = partial(GradioEvents.predict, bot_client=bot_client)
-        regenerate_with_clients = partial(GradioEvents.regenerate, bot_client=bot_client)
+        regenerate_with_clients = partial(
+            GradioEvents.regenerate, bot_client=bot_client
+        )
         query.submit(
             predict_with_clients,
             inputs=[
@@ -888,7 +977,14 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
         submit_btn.click(GradioEvents.reset_user_input, [], [query])
         empty_btn.click(
             GradioEvents.reset_state,
-            outputs=[chatbot, task_history, image_history, file_history, file_btn, search_result],
+            outputs=[
+                chatbot,
+                task_history,
+                image_history,
+                file_history,
+                file_btn,
+                search_result,
+            ],
             show_progress=True,
         )
         regen_btn.click(
@@ -907,7 +1003,10 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
             show_progress=True,
         )
 
-    demo.queue().launch(server_port=args.server_port, server_name=args.server_name)
+    demo.queue(
+        default_concurrency_limit=args.concurrency_limit, max_size=args.max_queue_size
+    )
+    demo.launch(server_port=args.server_port, server_name=args.server_name)
 
 
 def main():

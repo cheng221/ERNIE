@@ -47,14 +47,25 @@ def get_args() -> argparse.Namespace:
     """
     parser = ArgumentParser(description="ERNIE models web chat demo.")
 
-    parser.add_argument("--server-port", type=int, default=8232, help="Demo server port.")
-    parser.add_argument("--server-name", type=str, default="0.0.0.0", help="Demo server name.")
-    parser.add_argument("--max_char", type=int, default=8000, help="Maximum character limit for messages.")
-    parser.add_argument("--max_retry_num", type=int, default=3, help="Maximum retry number for request.")
+    parser.add_argument(
+        "--server-port", type=int, default=8232, help="Demo server port."
+    )
+    parser.add_argument(
+        "--server-name", type=str, default="0.0.0.0", help="Demo server name."
+    )
+    parser.add_argument(
+        "--max_char",
+        type=int,
+        default=8000,
+        help="Maximum character limit for messages.",
+    )
+    parser.add_argument(
+        "--max_retry_num", type=int, default=3, help="Maximum retry number for request."
+    )
     parser.add_argument(
         "--model_name_map",
         type=str,
-        default='{}',
+        default="{}",
         help="""JSON string defining model name to internal name mappings.
             Required Format:
             {"model_name": "internal_model_name", ...}
@@ -92,7 +103,15 @@ def get_args() -> argparse.Namespace:
             * ERNIE-4.5-VL[-*]: Multimodal models (image+text)
             """,
     )
-    parser.add_argument("--api_key", type=str, default="bce-v3/xxx", help="Model service API key.")
+    parser.add_argument(
+        "--api_key", type=str, default="bce-v3/xxx", help="Model service API key."
+    )
+    parser.add_argument(
+        "--concurrency_limit", type=int, default=10, help="Default concurrency limit."
+    )
+    parser.add_argument(
+        "--max_queue_size", type=int, default=50, help="Maximum queue size for request."
+    )
 
     args = parser.parse_args()
     try:
@@ -197,7 +216,12 @@ class GradioEvents:
             if idx in image_history:
                 content = []
                 content.append(
-                    {"type": "image_url", "image_url": {"url": GradioEvents.get_image_url(image_history[idx])}}
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": GradioEvents.get_image_url(image_history[idx])
+                        },
+                    }
                 )
                 content.append({"type": "text", "text": query_h})
                 conversation.append({"role": "user", "content": content})
@@ -206,9 +230,16 @@ class GradioEvents:
             conversation.append({"role": "assistant", "content": response_h})
 
         content = []
-        if file_url and (len(image_history) == 0 or file_url != list(image_history.values())[-1]):
+        if file_url and (
+            len(image_history) == 0 or file_url != list(image_history.values())[-1]
+        ):
             image_history[len(task_history)] = file_url
-            content.append({"type": "image_url", "image_url": {"url": GradioEvents.get_image_url(file_url)}})
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": GradioEvents.get_image_url(file_url)},
+                }
+            )
             content.append({"type": "text", "text": query})
             conversation.append({"role": "user", "content": content})
         else:
@@ -217,7 +248,9 @@ class GradioEvents:
         try:
             req_data = {"messages": conversation}
             model_name = model_name_map.get(model_name, model_name)
-            for chunk in bot_client.process_stream(model_name, req_data, max_tokens, temperature, top_p):
+            for chunk in bot_client.process_stream(
+                model_name, req_data, max_tokens, temperature, top_p
+            ):
                 if "error" in chunk:
                     raise Exception(chunk["error"])
 
@@ -390,7 +423,9 @@ class GradioEvents:
         """
         GradioEvents.gc()
 
-        reset_result = namedtuple("reset_result", ["chatbot", "task_history", "image_history", "file_btn"])
+        reset_result = namedtuple(
+            "reset_result", ["chatbot", "task_history", "image_history", "file_btn"]
+        )
         return reset_result(
             [],  # clear chatbot
             [],  # clear task_history
@@ -416,7 +451,9 @@ class GradioEvents:
         Returns:
             gr.update: An update object representing the visibility of the file button.
         """
-        return gr.update(visible=model_name.upper().startswith(MULTI_MODEL_PREFIX))  # file_btn
+        return gr.update(
+            visible=model_name.upper().startswith(MULTI_MODEL_PREFIX)
+        )  # file_btn
 
 
 def launch_demo(args: argparse.Namespace, bot_client: BotClient):
@@ -472,11 +509,16 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
 (本演示基于文心大模型实现。)</center>"""
         )
 
-        chatbot = gr.Chatbot(label="ERNIE", elem_classes="control-height", type="messages")
+        chatbot = gr.Chatbot(
+            label="ERNIE", elem_classes="control-height", type="messages"
+        )
         model_names = list(args.model_name_map.keys())
         with gr.Row():
             model_name = gr.Dropdown(
-                label="Select Model", choices=model_names, value=model_names[0], allow_custom_value=True
+                label="Select Model",
+                choices=model_names,
+                value=model_names[0],
+                allow_custom_value=True,
             )
             file_btn = gr.File(
                 label="Image upload (Active only for multimodal models. Accepted formats: PNG, JPEG, JPG)",
@@ -492,55 +534,89 @@ def launch_demo(args: argparse.Namespace, bot_client: BotClient):
             submit_btn = gr.Button("🚀 Submit(发送)", elem_id="submit-button")
             regen_btn = gr.Button("🤔️ Regenerate(重试)")
 
-        with gr.Accordion("⚙️ Advanced Config", open=False):  # open=False means collapsed by default
+        with gr.Accordion(
+            "⚙️ Advanced Config", open=False
+        ):  # open=False means collapsed by default
             system_message = gr.Textbox(value="", label="System message", visible=True)
             additional_inputs = [
                 system_message,
-                gr.Slider(minimum=1, maximum=4096, value=2048, step=1, label="Max new tokens"),
-                gr.Slider(minimum=0.1, maximum=1.0, value=1.0, step=0.05, label="Temperature"),
-                gr.Slider(minimum=0.1, maximum=1.0, value=0.7, step=0.05, label="Top-p (nucleus sampling)"),
+                gr.Slider(
+                    minimum=1, maximum=4096, value=2048, step=1, label="Max new tokens"
+                ),
+                gr.Slider(
+                    minimum=0.1, maximum=1.0, value=1.0, step=0.05, label="Temperature"
+                ),
+                gr.Slider(
+                    minimum=0.1,
+                    maximum=1.0,
+                    value=0.7,
+                    step=0.05,
+                    label="Top-p (nucleus sampling)",
+                ),
             ]
 
         task_history = gr.State([])
         image_history = gr.State({})
 
-        model_name.change(GradioEvents.toggle_components_visibility, inputs=model_name, outputs=file_btn)
         model_name.change(
-            GradioEvents.reset_state, outputs=[chatbot, task_history, image_history, file_btn], show_progress=True
+            GradioEvents.toggle_components_visibility,
+            inputs=model_name,
+            outputs=file_btn,
+        )
+        model_name.change(
+            GradioEvents.reset_state,
+            outputs=[chatbot, task_history, image_history, file_btn],
+            show_progress=True,
         )
         predict_with_clients = partial(
-            GradioEvents.predict_stream, model_name_map=args.model_name_map, bot_client=bot_client
+            GradioEvents.predict_stream,
+            model_name_map=args.model_name_map,
+            bot_client=bot_client,
         )
         regenerate_with_clients = partial(
-            GradioEvents.regenerate, model_name_map=args.model_name_map, bot_client=bot_client
+            GradioEvents.regenerate,
+            model_name_map=args.model_name_map,
+            bot_client=bot_client,
         )
         query.submit(
             predict_with_clients,
-            inputs=[query, chatbot, task_history, image_history, model_name, file_btn] + additional_inputs,
+            inputs=[query, chatbot, task_history, image_history, model_name, file_btn]
+            + additional_inputs,
             outputs=[chatbot],
             show_progress=True,
         )
         query.submit(GradioEvents.reset_user_input, [], [query])
         submit_btn.click(
             predict_with_clients,
-            inputs=[query, chatbot, task_history, image_history, model_name, file_btn] + additional_inputs,
+            inputs=[query, chatbot, task_history, image_history, model_name, file_btn]
+            + additional_inputs,
             outputs=[chatbot],
             show_progress=True,
         )
         submit_btn.click(GradioEvents.reset_user_input, [], [query])
         empty_btn.click(
-            GradioEvents.reset_state, outputs=[chatbot, task_history, image_history, file_btn], show_progress=True
+            GradioEvents.reset_state,
+            outputs=[chatbot, task_history, image_history, file_btn],
+            show_progress=True,
         )
         regen_btn.click(
             regenerate_with_clients,
-            inputs=[chatbot, task_history, image_history, model_name, file_btn] + additional_inputs,
+            inputs=[chatbot, task_history, image_history, model_name, file_btn]
+            + additional_inputs,
             outputs=[chatbot],
             show_progress=True,
         )
 
-        demo.load(GradioEvents.toggle_components_visibility, inputs=gr.State(model_names[0]), outputs=file_btn)
+        demo.load(
+            GradioEvents.toggle_components_visibility,
+            inputs=gr.State(model_names[0]),
+            outputs=file_btn,
+        )
 
-    demo.queue().launch(server_port=args.server_port, server_name=args.server_name)
+    demo.queue(
+        default_concurrency_limit=args.concurrency_limit, max_size=args.max_queue_size
+    )
+    demo.launch(server_port=args.server_port, server_name=args.server_name)
 
 
 def main():
