@@ -10,7 +10,7 @@ num_samples_each_epoch: 6000000
 
 ### model
 model_name_or_path: baidu/ERNIE-4.5-21B-A3B-Paddle
-moe_group: mp
+moe_group: dummy
 fine_tuning: LoRA
 lora_rank: 32
 fuse_rope: True
@@ -55,7 +55,7 @@ adam_beta2: 0.95
 offload_optim: True
 
 # performance
-tensor_parallel_degree: 2
+tensor_parallel_degree: 1
 pipeline_parallel_degree: 1
 sharding_parallel_degree: 1
 sharding: stage1
