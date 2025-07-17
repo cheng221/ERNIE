@@ -217,9 +217,9 @@ class ErnieMoEConfig(PretrainedConfig):
         self.use_rmsnorm = use_rmsnorm
         self.using_dynamic_sequence_length = using_dynamic_sequence_length
         if using_dynamic_sequence_length:
-            assert micro_batch_size > 0, (
-                "micro_batch_size should be set when using_dynamic_sequence_length"
-            )
+            assert (
+                micro_batch_size > 0
+            ), "micro_batch_size should be set when using_dynamic_sequence_length"
         self.micro_batch_size = micro_batch_size
         self.use_qk_norm = use_qk_norm
 
@@ -270,9 +270,9 @@ class ErnieMoEConfig(PretrainedConfig):
         # trading off memory for improved throughput.
         self.use_async_a2a = use_async_a2a
         if self.use_async_a2a:
-            assert self.use_quant_before_a2a, (
-                "use_quant_before_a2a must be True when use_async_a2a is True"
-            )
+            assert (
+                self.use_quant_before_a2a
+            ), "use_quant_before_a2a must be True when use_async_a2a is True"
 
         default_fp8_configs = {
             "quant_scheme": "DelayedScaling",
@@ -333,13 +333,13 @@ class ErnieMoEConfig(PretrainedConfig):
         self.moe_layer_feed_fake_token = moe_layer_feed_fake_token
 
         if self.sequence_parallel:
-            assert self.using_dynamic_sequence_length or self.seqlen, (
-                "seqlen not provided in sequence-parallel when not using dygramic sequence length"
-            )
+            assert (
+                self.using_dynamic_sequence_length or self.seqlen
+            ), "seqlen not provided in sequence-parallel when not using dygramic sequence length"
 
-            assert self.tensor_parallel_degree > 1, (
-                f"sequence-parallel only works in mp, got mp={self.tensor_parallel_degree}"
-            )
+            assert (
+                self.tensor_parallel_degree > 1
+            ), f"sequence-parallel only works in mp, got mp={self.tensor_parallel_degree}"
 
         if use_recompute_moe:
             logger.warning("set `use_recompute_moe`=True, disabling `use_recompute`")
@@ -376,9 +376,9 @@ class ErnieMoEConfig(PretrainedConfig):
         self.moe_use_aux_free = moe_use_aux_free
         self.fuse_gate_detach_matmul = fuse_gate_detach_matmul
         if insert_empty_layer is not None:
-            assert isinstance(insert_empty_layer, list), (
-                "insert_empty_layer should be a list"
-            )
+            assert isinstance(
+                insert_empty_layer, list
+            ), "insert_empty_layer should be a list"
         else:
             insert_empty_layer = []
 
@@ -397,9 +397,9 @@ class ErnieMoEConfig(PretrainedConfig):
         self.aux_loss_type = aux_loss_type
 
         if pp_no_recompute_layer is not None:
-            assert isinstance(insert_empty_layer, list), (
-                "pp_no_recompute_layer should be a list"
-            )
+            assert isinstance(
+                insert_empty_layer, list
+            ), "pp_no_recompute_layer should be a list"
 
         self.pp_no_recompute_layer = pp_no_recompute_layer
         self.register_nonsaveable_keys("moe_group")
@@ -414,13 +414,13 @@ class ErnieMoEConfig(PretrainedConfig):
     def __setattr__(self, name: str, value):
         super().__setattr__(name, value)
         if getattr(self, "use_recompute", False):
-            assert not getattr(self, "use_recompute_attn", False), (
-                "cannot set `use_recompute_attn=True` when `use_recompute=True`"
-            )
+            assert not getattr(
+                self, "use_recompute_attn", False
+            ), "cannot set `use_recompute_attn=True` when `use_recompute=True`"
         if getattr(self, "use_recompute", False):
-            assert not getattr(self, "use_recompute_moe", False), (
-                "cannot set `use_recompute_moe=True` when `use_recompute=True`"
-            )
+            assert not getattr(
+                self, "use_recompute_moe", False
+            ), "cannot set `use_recompute_moe=True` when `use_recompute=True`"
 
     def register_nonsaveable_keys(self, keys):
         if hasattr(super(), "register_nonsaveable_keys"):

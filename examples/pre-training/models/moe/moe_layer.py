@@ -261,9 +261,9 @@ class AlltoAllExpertOverlap(PyLayer):
     def forward(
         ctx, input, group, num_local_experts, forward_func_dict, is_first_fwd=False
     ):
-        assert dist.get_world_size(group) > 1, (
-            "AlltoAllExpertOverlap is not supported for a world size less than or equal to 1."
-        )
+        assert (
+            dist.get_world_size(group) > 1
+        ), "AlltoAllExpertOverlap is not supported for a world size less than or equal to 1."
 
         ctx.bw_funcs = {}
         ctx.group = group
@@ -746,9 +746,9 @@ class MOELayer(nn.Layer):
                 else:
                     compat_args = (None,)
             else:
-                assert not self.use_correction_bias, (
-                    "correction bias not supported, rebuild moe-ops"
-                )
+                assert (
+                    not self.use_correction_bias
+                ), "correction bias not supported, rebuild moe-ops"
                 compat_args = ()
 
             if not self.config.use_ep_comm_overlap:
@@ -951,9 +951,9 @@ class MOELayer(nn.Layer):
             input = input.reshape([-1, input.shape[-1]])
         else:
             orig_shape = None
-        assert len(input.shape) == 2, (
-            f"input Tensor must have dimensions: (s)equence, (d)im, got:{input.shape}"
-        )
+        assert (
+            len(input.shape) == 2
+        ), f"input Tensor must have dimensions: (s)equence, (d)im, got:{input.shape}"
 
         hidden_size = input.shape[1]
         if token_type_ids is not None:
@@ -1005,9 +1005,9 @@ class MOELayer(nn.Layer):
                 ) = self.gate_and_distpach(gate_input, token_type_ids)
 
         if self.config.use_combine_before_a2a:
-            assert not self.config.use_ep_comm_overlap, (
-                "Dont support `use_ep_comm_overlap` when enable `use_combine_before_a2a`."
-            )
+            assert (
+                not self.config.use_ep_comm_overlap
+            ), "Dont support `use_ep_comm_overlap` when enable `use_combine_before_a2a`."
             cw_shape = combine_weights.shape
             si_shape = scatter_index.shape
             scatter_index = scatter_index.reshape([-1])
