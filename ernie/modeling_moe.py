@@ -284,13 +284,14 @@ def _parse_moe_group(
     elif moe_group in {"mp", "model", "tp"}:
         try:
             moe_group = fleet.get_hybrid_communicate_group().get_model_parallel_group()
+            # (LiuTing): multi-gpu but tp=1
+            # need use dummy group for `moe_gate_dispatch_partial_nosoftmaxtopk` kernel.
+            if moe_group.nranks <= 1:
+                moe_group = paddle.distributed.communication.group.Group(0, None, [0])
         except Exception as _:
-            # single-gpu
-            pass
-        # single-gpu or multi-gpu but tp=1
-        if moe_group.nranks <= 1:
-            mp_group = paddle.distributed.communication.group.Group(0, None, [0])
-            moe_group = mp_group
+            # (LiuTing): just single-gpu
+            moe_group = paddle.distributed.communication.group.Group(0, None, [0])
+
     elif moe_group in {"dummy"}:  # 4.5t_mm infer run this
         dummy_group = paddle.distributed.communication.group.Group(0, None, [0])
         moe_group = dummy_group
