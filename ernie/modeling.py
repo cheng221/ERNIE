@@ -853,8 +853,12 @@ class Ernie4_5_Attention(nn.Layer):
         k = tensor.transpose(x=k, perm=perm)
         v = tensor.transpose(x=v, perm=perm)
 
-        scale_qk_coeff = self.config.scale_qk_coeff * self.head_dim**0.5
+        replicate = self.config.num_attention_heads // self.config.num_key_value_heads
+        k = paddle.repeat_interleave(k, replicate, axis=1)
+        v = paddle.repeat_interleave(v, replicate, axis=1)
 
+        scale_qk_coeff = self.config.scale_qk_coeff * self.head_dim**0.5
+        attention_mask = paddle.where(attention_mask, paddle.to_tensor(0.0, dtype=q.dtype), paddle.finfo(q.dtype).min)
         product = paddle.matmul(x=q.scale(1.0 / scale_qk_coeff), y=k, transpose_y=True)
 
         product = product.cast(paddle.float32)
