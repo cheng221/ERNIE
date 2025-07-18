@@ -1237,9 +1237,6 @@ class MOEAllGatherLayerV2(MOELayer):
                 )
                 if true_experts[iexpert].training:
                     chunk.stop_gradient = False
-                logger.warning(
-                    f"local-expert: {iexpert} does not process data, we give a zero input to expert"
-                )
                 expert_out = true_experts[iexpert](chunk.contiguous())
                 no_tokens_expert_outputs.append(
                     expert_out * 0.0
