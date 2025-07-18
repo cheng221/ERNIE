@@ -285,7 +285,10 @@ def _parse_moe_group(
         try:
             moe_group = fleet.get_hybrid_communicate_group().get_model_parallel_group()
         except Exception as _:
-            # tp = 1
+            # single-gpu
+            pass
+        # single-gpu or multi-gpu but tp=1
+        if moe_group.nranks <= 1:
             mp_group = paddle.distributed.communication.group.Group(0, None, [0])
             moe_group = mp_group
     elif moe_group in {"dummy"}:  # 4.5t_mm infer run this
