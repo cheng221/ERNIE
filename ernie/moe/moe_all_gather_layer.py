@@ -505,6 +505,7 @@ class AlltoAllSmart(paddle.autograd.PyLayer):
         grads = [g for g in grads if g is not None]
         return tuple(grads) + tuple(router_fn_args_grad)
 
+
 class AlltoAllSmartXPU(paddle.autograd.PyLayer):
     """
     Perform dispatch inputs alltoall. (XPU VERSION)
@@ -816,6 +817,7 @@ class AlltoAllSmartXPU(paddle.autograd.PyLayer):
 # Conditionally select the AlltoAllSmart implementation
 if paddle.is_compiled_with_xpu():
     AlltoAllSmart = AlltoAllSmartXPU
+
 
 class MOEAllGatherLayerV2(MOELayer):
     """
@@ -1686,4 +1688,3 @@ class MOEAllGatherLayerV2(MOELayer):
             )
 
         return router_loss
-
