@@ -74,6 +74,7 @@ from .sequence_parallel_utils import GatherOp
 paddle.distributed.communication.group.Group.__deepcopy__ = lambda self, _: self
 paddle.distributed.communication.group.Group.to_json = lambda self: repr(self)
 
+
 def mtp_hidden_states_set_zero(hidden_states, inbatch_pack_offset):
     # inbatch_pack_offset: [batch_size, seqlen]
     # hidden_states: [batch_size, seqlen, d_model]
@@ -84,12 +85,11 @@ def mtp_hidden_states_set_zero(hidden_states, inbatch_pack_offset):
         assert batch_size == 1, "only support batch_size=1 in inbatch sft training"
 
         if len(valid_indices) > 0:
-            zeros = paddle.zeros([len(valid_indices), d_model], dtype=hidden_states.dtype)
+            zeros = paddle.zeros(
+                [len(valid_indices), d_model], dtype=hidden_states.dtype
+            )
             mask = paddle.scatter(
-                mask,
-                valid_indices.reshape([-1, 1]), 
-                zeros,
-                overwrite=True
+                mask, valid_indices.reshape([-1, 1]), zeros, overwrite=True
             )
         mask.stop_gradient = True
         hidden_states = hidden_states * mask.unsqueeze(0)
@@ -100,17 +100,15 @@ def mtp_hidden_states_set_zero(hidden_states, inbatch_pack_offset):
         mask = paddle.ones_like(hidden_states)
 
         if len(valid_indices) > 0:
-            zeros = paddle.zeros([len(valid_indices), d_model], dtype=hidden_states.dtype)
-            mask = paddle.scatter(
-                mask,
-                valid_indices, 
-                zeros,
-                overwrite=True
+            zeros = paddle.zeros(
+                [len(valid_indices), d_model], dtype=hidden_states.dtype
             )
-        
+            mask = paddle.scatter(mask, valid_indices, zeros, overwrite=True)
+
         mask.stop_gradient = True
         hidden_states = hidden_states * mask
     return hidden_states
+
 
 @dataclass
 class BaseModelOutputWithPastAndCrossAttentions(_BaseModelOutput):
@@ -704,7 +702,7 @@ class Ernie4_5_DecoderLayer(nn.Layer):
             is_multimodel_token_cpu, is_multimodel_token_task = async_offload(
                 is_multimodel_token, async_loader
             )
-            has_dense_experts_token_task = async_offload(
+            _, has_dense_experts_token_task = async_offload(
                 has_dense_experts_token, async_loader
             )
         else:
@@ -1386,27 +1384,42 @@ class Ernie4_5_Model(Ernie4_5_PretrainedModel):
             ]
             inputs_embeds = inputs_embeds[:, : -self.config.num_nextn_predict_layers, :]
             inputs_embeds_ori = inputs_embeds
-        
+
             if position_ids is not None:
-                    position_ids_extra = position_ids[:, -self.config.num_nextn_predict_layers:]
-                    position_ids = position_ids[:, : -self.config.num_nextn_predict_layers]
-                    position_ids_ori = position_ids
-            
+                position_ids_extra = position_ids[
+                    :, -self.config.num_nextn_predict_layers :
+                ]
+                position_ids = position_ids[:, : -self.config.num_nextn_predict_layers]
+                position_ids_ori = position_ids
+
             if attention_mask is not None:
                 attention_mask_full = attention_mask
-                attention_mask = attention_mask[:, :, :-self.config.num_nextn_predict_layers, :-self.config.num_nextn_predict_layers]
-            
+                attention_mask = attention_mask[
+                    :,
+                    :,
+                    : -self.config.num_nextn_predict_layers,
+                    : -self.config.num_nextn_predict_layers,
+                ]
+
             if attn_mask_start_row_indices is not None:
-                attn_mask_start_row_indices_extra = attn_mask_start_row_indices[:, :, -self.config.num_nextn_predict_layers:]
-                attn_mask_start_row_indices = attn_mask_start_row_indices[:, :, :-self.config.num_nextn_predict_layers]
-                attn_mask_start_row_indices_ori = attn_mask_start_row_indices   
+                attn_mask_start_row_indices_extra = attn_mask_start_row_indices[
+                    :, :, -self.config.num_nextn_predict_layers :
+                ]
+                attn_mask_start_row_indices = attn_mask_start_row_indices[
+                    :, :, : -self.config.num_nextn_predict_layers
+                ]
+                attn_mask_start_row_indices_ori = attn_mask_start_row_indices
 
             nbatch_pack_offset = kwargs.get("nbatch_pack_offset", None)
             if nbatch_pack_offset is None:
                 raise ValueError("nbatch_pack_offset is required in mtp train")
 
-            nbatch_pack_offset_extra = nbatch_pack_offset[:, -self.config.num_nextn_predict_layers:]
-            nbatch_pack_offset = nbatch_pack_offset[:, -self.config.num_nextn_predict_layers:]
+            nbatch_pack_offset_extra = nbatch_pack_offset[
+                :, -self.config.num_nextn_predict_layers :
+            ]
+            nbatch_pack_offset = nbatch_pack_offset[
+                :, -self.config.num_nextn_predict_layers :
+            ]
             nbatch_pack_offset_ori = nbatch_pack_offset
 
         if self.config.sequence_parallel:
@@ -1499,20 +1512,39 @@ class Ernie4_5_Model(Ernie4_5_PretrainedModel):
 
                 if attention_mask is not None:
                     b, h, seqlen, seqlen = attention_mask.shape
-                    attention_mask = attention_mask_full[:, :, (depth+1):(seqlen+depth+1), (depth+1):(seqlen+depth+1)]
+                    attention_mask = attention_mask_full[
+                        :,
+                        :,
+                        (depth + 1) : (seqlen + depth + 1),
+                        (depth + 1) : (seqlen + depth + 1),
+                    ]
 
                 if attn_mask_start_row_indices is not None:
                     attn_mask_start_row_indices = paddle.concat(
-                        [attn_mask_start_row_indices_ori[:, :, (depth + 1):], attn_mask_start_row_indices_extra[:, :, :(depth + 1)]], axis=-1
+                        [
+                            attn_mask_start_row_indices_ori[:, :, (depth + 1) :],
+                            attn_mask_start_row_indices_extra[:, :, : (depth + 1)],
+                        ],
+                        axis=-1,
                     )
                 if position_ids is not None:
                     position_ids = paddle.concat(
-                        [position_ids_ori[:, (depth + 1):], position_ids_extra[:, :(depth + 1)]], axis=1
+                        [
+                            position_ids_ori[:, (depth + 1) :],
+                            position_ids_extra[:, : (depth + 1)],
+                        ],
+                        axis=1,
                     )
                 nbatch_pack_offset_cur_depth = paddle.concat(
-                    [nbatch_pack_offset_ori[:, (depth + 1):],nbatch_pack_offset_extra[:, :(depth + 1)]], axis=1
+                    [
+                        nbatch_pack_offset_ori[:, (depth + 1) :],
+                        nbatch_pack_offset_extra[:, : (depth + 1)],
+                    ],
+                    axis=1,
                 )
-                hidden_states = mtp_hidden_states_set_zero(hidden_states, nbatch_pack_offset_cur_depth)
+                hidden_states = mtp_hidden_states_set_zero(
+                    hidden_states, nbatch_pack_offset_cur_depth
+                )
 
                 # Norm&Concat
                 inputs_embeds_cur_depth_norm = self.mtp_emb_norm[depth](
@@ -2004,7 +2036,7 @@ class Ernie4_5_MoeForCausalLM(Ernie4_5_PretrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=True,
-            nbatch_pack_offset=kwargs.get('nbatch_pack_offset', None),
+            nbatch_pack_offset=kwargs.get("nbatch_pack_offset", None),
         )
 
         hidden_states = outputs.last_hidden_state

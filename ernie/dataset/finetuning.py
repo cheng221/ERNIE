@@ -320,7 +320,6 @@ class SequenceDataset(IterableDataset):
         self.break_turn_token = tokenizer.cls_token  # "<cls>"
         self.sys_start_token = getattr(tokenizer, "sys_start_token", None)
         self.sys_end_token = getattr(tokenizer, "sys_end_token", None)
-        # self._setup_markup()
         self.max_seq_len = max_seq_len
         self.is_valid = is_valid
         self.random_seed = random_seed
