@@ -66,12 +66,6 @@ export XPU_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 * Note: In `Chat` module, the number of gpus configured by CUDA_VISIBLE_DEVICES should be equal to `tensor_parallel_degree` in the config.
 Alternatively, you can also unset CUDA_VISIBLE_DEVICES.
 
-**XPU Usage**
-
-```bash
-XPU_ENABLED=1 erniekit train examples/configs/xpu/{config_file}
-```
-
 # 1. CLI Usage
 
 Examples using **ERNIE-4.5-0.3B** model:

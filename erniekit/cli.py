@@ -94,10 +94,15 @@ def main():
     nnodes = os.getenv("NNODES", "1")
     master_ip = os.getenv("MASTER_ADDR", "127.0.0.1")
     master_port = os.getenv("MASTER_PORT", "8080")
-    is_xpu = os.getenv("XPU_ENABLED", False)
+    num_xpus = paddle.device.xpu.device_count()
+    if num_xpus > 0:
+        is_xpu = True
+        print(f"Detected {num_xpus} XPU device(s). XPU would be used.")
+    else:
+        is_xpu = False
+        print("No XPU device detected. CPU/GPU would be used.")
 
     if is_xpu:
-        num_xpus = paddle.device.xpu.device_count()
         default_xpus = ",".join(map(str, range(0, num_xpus)))
         visible_cards = os.getenv("XPU_VISIBLE_DEVICES", default_xpus)
     else:
