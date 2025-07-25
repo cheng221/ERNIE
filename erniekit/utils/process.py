@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import paddle
 
 import psutil
 
@@ -61,6 +62,27 @@ def is_valid_model_dir(directory: str) -> bool:
     for item in os.listdir(directory):
         item_path = os.path.join(directory, item)
         if os.path.isfile(item_path):
-            if item.lower().endswith(('.safetensors', '.pdparams')):
+            if item.lower().endswith((".safetensors", ".pdparams")):
                 return True
     return False
+
+
+def detect_device() -> str:
+    """
+    Detect the current device type (GPU/NPU/XPU).
+
+    Returns:
+        str: Device type ('gpu', 'npu', 'xpu')
+    """
+    try:
+        place = paddle.get_device()
+        place_lower = place.lower()
+
+        if "npu" in place_lower:
+            return "npu"
+        elif "xpu" in place_lower:
+            return "xpu"
+        else:
+            return "gpu"
+    except Exception as e:
+        print(f"Error detecting device: {e}")
