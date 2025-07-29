@@ -61,6 +61,11 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export XPU_VISIBLE_DEVICES=0
 # Multi XPUs
 export XPU_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+
+# Single NPU
+export ASCEND_RT_VISIBLE_DEVICES=0
+# Multi NPUs
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 ```
 
 * Note: In `Chat` module, the number of gpus configured by CUDA_VISIBLE_DEVICES should be equal to `tensor_parallel_degree` in the config.
