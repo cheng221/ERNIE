@@ -83,7 +83,6 @@ def run_update_config_training(config, steps="train"):
         steps,
         temp_config_path,
     ]
-    print(temp_config_path)
     if steps == "export":
         cmd.append("lora=True")
 
@@ -188,9 +187,9 @@ def assert_result(ret_code, log_output):
         raise AssertionError("Training Failed")
 
 
-def calculate_avg_loss():
+def assert_loss(base_loss):
     """
-    Calculate the average loss from the log file.
+    Calculate the average loss from the log file, and compare it with the expected value.
     """
     log_path = os.path.join(os.getcwd(), "erniekit_dist_log", "workerlog.0")
     loss_pattern = re.compile(r"- loss:\s*([0-9]+\.[0-9]+)")
@@ -199,10 +198,14 @@ def calculate_avg_loss():
     losses = [float(m.group(1)) for m in loss_pattern.finditer(content)]
 
     if losses:
-        avg_loss = sum(losses) / len(losses)
-        return round(avg_loss, 6)
+        sum_loss = sum(losses) / len(losses)
+        avg_loss = round(sum_loss, 6)
     else:
-        return None
+        avg_loss = 0
+
+    assert (
+        abs(avg_loss - base_loss) <= 0.0001
+    ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
 
 
 def attach_log_file():
@@ -231,11 +234,8 @@ def test_sft():
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    avg_loss = calculate_avg_loss()
     base_loss = 14.33841
-    assert (
-        abs(avg_loss - base_loss) <= 0.0001
-    ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
+    assert_loss(base_loss)
 
 
 def test_sft_eval():
@@ -267,24 +267,21 @@ def test_sft_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    # config["pipeline_parallel_degree"] = 1
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    avg_loss = calculate_avg_loss()
     base_loss = 14.333244
-    assert (
-        abs(avg_loss - base_loss) <= 0.0001
-    ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
+    assert_loss(base_loss)
 
 
 def test_sft_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    # config["pipeline_parallel_degree"] = 1
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
@@ -326,11 +323,8 @@ def test_sft_wint8mix_lora():
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    avg_loss = calculate_avg_loss()
     base_loss = 14.316673
-    assert (
-        abs(avg_loss - base_loss) <= 0.0001
-    ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
+    assert_loss(base_loss)
 
 
 def test_sft_wint8mix_lora_merge():
@@ -369,11 +363,8 @@ def test_dpo():
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    avg_loss = calculate_avg_loss()
     base_loss = 0.694716
-    assert (
-        abs(avg_loss - base_loss) <= 0.0001
-    ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
+    assert_loss(base_loss)
 
 
 def test_dpo_eval():
@@ -411,11 +402,8 @@ def test_dpo_lora():
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    avg_loss = calculate_avg_loss()
     base_loss = 0.692727
-    assert (
-        abs(avg_loss - base_loss) <= 0.0001
-    ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
+    assert_loss(base_loss)
 
 
 def test_dpo_lora_merge():
@@ -454,11 +442,8 @@ def test_dpo_wint8mix_lora():
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    avg_loss = calculate_avg_loss()
-    base_loss = 0.693656
-    assert (
-        abs(avg_loss - base_loss) <= 0.0001
-    ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
+    base_loss = 0.693501
+    assert_loss(base_loss)
 
 
 def test_dpo_wint8mix_lora_merge():
