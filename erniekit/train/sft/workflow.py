@@ -410,7 +410,7 @@ def run_sft(
         collate_fn,
         tokenizer=tokenizer,
         model_args=model_args,
-        max_seq_len=data_args.max_seq_len+model_config.num_nextn_predict_layers,
+        max_seq_len=data_args.max_seq_len + model_config.num_nextn_predict_layers,
     )
 
     if model_args.lora:
