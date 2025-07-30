@@ -229,12 +229,13 @@ def test_sft():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
+    config["pipeline_parallel_degree"] = 1
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    base_loss = 14.33841
+    base_loss = 14.336361
     assert_loss(base_loss)
 
 
