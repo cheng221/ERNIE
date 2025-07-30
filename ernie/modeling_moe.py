@@ -1710,6 +1710,7 @@ class ErniePretrainingCriterion(ErniePretrainingCriterionBase):
                 mtp_loss_res.append(res_cur_depth)
 
         def add_loss(main_loss, loss):
+            print(f"mtp loss is {loss}")
             return main_loss + loss - loss.detach()
 
         if self.return_tuple:
