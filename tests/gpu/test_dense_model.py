@@ -40,6 +40,7 @@ os.environ["NCCL_ALGO"] = "Tree"
 os.environ["FLAGS_embedding_deterministic"] = "1"
 os.environ["FLAGS_cudnn_deterministic"] = "1"
 
+
 def clean_output_dir():
     if os.path.exists(OUTPUT_DIR):
         shutil.rmtree(OUTPUT_DIR)
@@ -59,16 +60,14 @@ def kill_process_on_port():
     """
     try:
         result = subprocess.check_output(f"ps -ef | grep {PORT}", shell=True).decode()
-        killed = False
         for line in result.strip().split("\n"):
             if "grep" in line:
-                continue  
+                continue
             parts = line.split()
             if len(parts) >= 2:
                 pid = int(parts[1])
                 try:
                     os.kill(pid, signal.SIGKILL)
-                    killed = True
                 except Exception as e:
                     print(f"Failed to kill PID {pid}: {e}")
     except subprocess.CalledProcessError:
@@ -91,33 +90,49 @@ def run_update_config_training(config, steps="train"):
         cmd.append("lora=True")
 
     if steps == "server":
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, preexec_fn=os.setsid)
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            preexec_fn=os.setsid,
+        )
         return process
     elif steps == "chat":
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, text=True, bufsize=1)
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
         return process
     else:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        result = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
         return result.returncode, result.stdout
 
-def run_check_fastdeploy_infer(process_server,process_chat):
+
+def run_check_fastdeploy_infer(process_server, process_chat):
     """
     Check fastdeploy inference
     """
     try:
         for _ in range(180):
             try:
-                resp = requests.get(f"http://0.0.0.0:8188/health", timeout=1)
+                resp = requests.get("http://0.0.0.0:8188/health", timeout=3)
                 if resp.status_code == 200:
                     break
             except Exception:
                 pass
             time.sleep(1)
         else:
-            with open("./log/workerlog.0", 'r', encoding='utf-8') as f:
+            with open("./log/workerlog.0", "r", encoding="utf-8") as f:
                 lines = f.readlines()
                 for line in lines[-30:]:
-                    print(line, end='')
+                    print(line, end="")
             pytest.fail("server faild start")
 
         try:
@@ -130,7 +145,6 @@ def run_check_fastdeploy_infer(process_server,process_chat):
 
         start_time = time.time()
         chat_output_lines = []
-        assistant_detected = False
 
         while True:
             try:
@@ -145,7 +159,6 @@ def run_check_fastdeploy_infer(process_server,process_chat):
                 print("Assistant:", line)
 
                 if "Assistant:" in line:
-                    assistant_detected = True
                     break
 
                 if time.time() - start_time > 30:
@@ -169,11 +182,13 @@ def run_check_fastdeploy_infer(process_server,process_chat):
             print(f"chat shutdown failed: {e}")
         process_chat.wait()
 
+
 def assert_result(ret_code, log_output):
     """assert result"""
     if ret_code != 0:
         print("\n".join(log_output.strip().splitlines()[-30:]))
         raise AssertionError("Training Failed")
+
 
 def assert_loss(base_loss):
     """
@@ -194,6 +209,7 @@ def assert_loss(base_loss):
     assert (
         abs(avg_loss - base_loss) <= 0.0001
     ), f"loss: {avg_loss}, base_loss: {base_loss}, exist diff!"
+
 
 def attach_log_file():
     log_path = os.path.join(os.getcwd(), "/erniekit_dist_log", "workerlog.0")
@@ -246,7 +262,6 @@ def test_sft_fd_server():
     process_server = run_update_config_training(config, steps="server")
     process_chat = run_update_config_training(config, steps="chat")
     run_check_fastdeploy_infer(process_server, process_chat)
-
 
 
 def test_sft_lora():
@@ -302,7 +317,7 @@ def test_dpo():
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    base_loss =  0.693828
+    base_loss = 0.693828
     assert_loss(base_loss)
 
 
