@@ -1,3 +1,5 @@
+# !/usr/bin/env python3
+
 # Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,11 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# from .logging import logger, setup_logger_output_file
 
-# __all__ = ['logger', 'setup_logger_output_file']
+import os
+import logging
+from paddleformers.trainer.trainer_callback import TrainerCallback
 
-from .data_utils import *  # noqa
-from .logging import *  # noqa
-from .seed_utils import *  # noqa
-from .training_utils import *  # noqa
+logger = logging.getLogger(__name__)
+
+
+class StopperCallback(TrainerCallback):
+
+    def on_substep_end(self, args, state, control, **kwargs):
+        if os.path.exists("/root/stop"):
+            control.should_training_stop = True
