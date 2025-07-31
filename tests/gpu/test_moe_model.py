@@ -130,7 +130,7 @@ def run_check_fastdeploy_infer(process_server, process_chat):
                 lines = f.readlines()
                 for line in lines[-30:]:
                     print(line, end="")
-            pytest.fail("server faild start")
+            pytest.fail("FD server health check fail")
 
         try:
             user_input = "hello\n"
@@ -138,7 +138,7 @@ def run_check_fastdeploy_infer(process_server, process_chat):
             process_chat.stdin.write(user_input)
             process_chat.stdin.flush()
         except Exception as e:
-            pytest.fail(f"Failed to send input to chat process: {e}")
+            pytest.fail(f"Failed to send input to erniekit chat: {e}")
 
         start_time = time.time()
         chat_output_lines = []
@@ -209,7 +209,7 @@ def assert_loss(base_loss):
 
 
 def attach_log_file():
-    log_path = os.path.join(os.getcwd(), "/erniekit_dist_log", "workerlog.0")
+    log_path = os.path.join(os.getcwd(), "erniekit_dist_log", "workerlog.0")
     if os.path.exists(log_path):
         allure.attach.file(
             log_path, name="Trainning Log", attachment_type=allure.attachment_type.TEXT
@@ -229,20 +229,20 @@ def test_sft():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    base_loss = 14.336361
+    base_loss = 14.33841
     assert_loss(base_loss)
 
 
 def test_sft_eval():
     yaml_path = os.path.join(CONFIG_PATH, "run_eval.yaml")
     config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = MODEL_PATH
+    config["model_name_or_path"] = "./output/checkpoint-2"
 
     ret_code, err_log = run_update_config_training(config, steps="eval")
     attach_log_file()
@@ -268,7 +268,6 @@ def test_sft_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    # config["pipeline_parallel_degree"] = 1
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -282,7 +281,6 @@ def test_sft_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    # config["pipeline_parallel_degree"] = 1
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
@@ -292,7 +290,7 @@ def test_sft_lora_merge():
 def test_sft_lora_eval():
     yaml_path = os.path.join(CONFIG_PATH, "run_eval.yaml")
     config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = MODEL_PATH
+    config["model_name_or_path"] = "./output/export"
 
     ret_code, err_log = run_update_config_training(config, steps="eval")
     attach_log_file()
@@ -318,7 +316,7 @@ def test_sft_wint8mix_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -332,7 +330,7 @@ def test_sft_wint8mix_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
@@ -358,20 +356,19 @@ def test_dpo():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    base_loss = 0.694716
+    base_loss = 0.690705
     assert_loss(base_loss)
 
 
 def test_dpo_eval():
     yaml_path = os.path.join(CONFIG_PATH, "run_eval.yaml")
     config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = MODEL_PATH
+    config["model_name_or_path"] = "./output/checkpoint-3"
 
     ret_code, err_log = run_update_config_training(config, steps="eval")
     attach_log_file()
@@ -397,7 +394,7 @@ def test_dpo_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -411,7 +408,7 @@ def test_dpo_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
@@ -437,7 +434,7 @@ def test_dpo_wint8mix_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -451,7 +448,7 @@ def test_dpo_wint8mix_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    config["pipeline_parallel_degree"] = 1
+    
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
