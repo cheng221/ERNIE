@@ -229,7 +229,6 @@ def test_sft():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -316,7 +315,6 @@ def test_sft_wint8mix_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -330,7 +328,6 @@ def test_sft_wint8mix_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
@@ -394,7 +391,6 @@ def test_dpo_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -408,7 +404,6 @@ def test_dpo_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
@@ -434,7 +429,6 @@ def test_dpo_wint8mix_lora():
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
-    
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
@@ -448,7 +442,6 @@ def test_dpo_wint8mix_lora_merge():
     yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
     config = default_args(yaml_path).copy()
     config["model_name_or_path"] = MODEL_PATH
-    
 
     ret_code, err_log = run_update_config_training(config, steps="export")
     attach_log_file()
