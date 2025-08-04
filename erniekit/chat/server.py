@@ -51,6 +51,10 @@ def run_server(args: Optional[dict[str, Any]] = None) -> None:
             f"No Checkpoint detected, launch server from {model_args.model_name_or_path}."
         )
 
+    logger.info(
+        "The optimal configuration for model deployment can be referred: https://github.com/PaddlePaddle/FastDeploy/tree/develop/docs/zh/optimal_deployment"
+    )
+
     env = deepcopy(os.environ)
     command = (
         "python -m fastdeploy.entrypoints.openai.api_server "
