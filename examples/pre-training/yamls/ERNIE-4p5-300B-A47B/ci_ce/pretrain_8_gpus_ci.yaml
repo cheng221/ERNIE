@@ -4,9 +4,9 @@ env:
 
 # ---------------------------model args-------------------------------------------------#
 model_args:
-    model_name_or_path: model_configs/
+    model_name_or_path: model_configs/ERNIE-4p5-300B-A47B/
     tokenizer_name: ./ernie/src/tokenizers/tokenizer_model
-    output_dir: ./output/eb4p5_turbo
+    output_dir: ./output/
     data_load_process_num: 40
     max_seq_length: 4096
     base_seq_length: 4096
@@ -18,8 +18,10 @@ model_args:
     enable_mtp_magic_send: True
 
     model_config:
-        num_hidden_layers: 24
-        moe_num_experts: 16
+        num_hidden_layers: 6
+        moe_num_experts: 8
+        moe_k: 4
+        moe_capacity: [4,4,4]
 
         multi_token_pred_depth: 1
         use_ep_comm_overlap: false
@@ -44,7 +46,7 @@ model_args:
             swiglu_probs_bwd: true
             split_group_gemm: false
             spaq: true
-            transpose_split_quant: true
+        transpose_split_quant: true
 
         moe_gate: top2_fused
 
@@ -73,8 +75,8 @@ trainer_args:
     learning_rate: 2.2e-4
     min_lr: 2.2e-5
 
-    gradient_accumulation_steps: 90
-    per_device_train_batch_size: 2
+    gradient_accumulation_steps: 2
+    per_device_train_batch_size: 1
     per_device_eval_batch_size: 1
 
     lr_scheduler: wsd:231084
@@ -91,16 +93,15 @@ trainer_args:
     scale_loss: 4096
     seed: 666
     use_train_part_sharding: 1
-    pre_alloc_memory: 70
     offload_optim: True
 
-    pipeline_parallel_degree: 4
+    pipeline_parallel_degree: 2
     tensor_parallel_degree: 1
     virtual_pp_degree: 1
     data_parallel_degree: 1
-    expert_parallel_degree: 8
+    expert_parallel_degree: 4
     sharding: "stage1"
-    sharding_parallel_degree: 8
+    sharding_parallel_degree: 4
     amp_master_grad: 1
     pipeline_parallel_config: enable_delay_scale_loss enable_overlap_p2p_comm best_unbalanced_scheduler
     sharding_parallel_config: split_param
@@ -111,16 +112,13 @@ trainer_args:
     skip_profile_timer: True
     ignore_data_skip: 0
     shuffle_consecutive: True
+    load_sharded_model: True
+    save_sharded_model: True
     ignore_load_lr_and_optim: False
     metrics_output_path: ./output/paddle_distributed_logs/
-    pdc_download_ckpt: true
-    pdc_download_timeout: 300
     use_moe: true
     moe_with_send_router_loss: False
     moe_group: ep
     log_global_grad_norm: True
     enable_optimizer_timer: False
     gc_interval: 100000
-
-    unified_checkpoint: true
-    unified_checkpoint_config: "skip_save_model_weight"
