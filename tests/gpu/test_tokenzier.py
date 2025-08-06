@@ -52,18 +52,12 @@ def test_0_3b_tokenizer_io():
 
 
 def test_21b_tokenizer_io():
-    assert_tokenizer_correctness(
-        get_tokenizer_time(tokenizer_21b_path), 1.159931640625
-    )
+    assert_tokenizer_correctness(get_tokenizer_time(tokenizer_21b_path), 1.159931640625)
 
 
 def test_28b_tokenizer_io():
-    assert_tokenizer_correctness(
-        get_tokenizer_time(tokenizer_28b_path), 1.92681640625
-    )
+    assert_tokenizer_correctness(get_tokenizer_time(tokenizer_28b_path), 1.92681640625)
 
 
 def test_300b_tokenizer_io():
-    assert_tokenizer_correctness(
-        get_tokenizer_time(tokenizer_300b_path), 1.0728515625
-    )
+    assert_tokenizer_correctness(get_tokenizer_time(tokenizer_300b_path), 1.0728515625)
