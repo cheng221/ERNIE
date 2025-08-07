@@ -248,7 +248,7 @@ class ExampleSet:
                 new_image_info = []
                 for image_info in ex[key]:
                     url = image_info["image_url"]
-                    if url.startswith('http') or os.path.isabs(url):
+                    if url.startswith("http") or os.path.isabs(url):
                         pass
                     else:
                         url = os.path.join(os.path.dirname(self._file_name), url)
@@ -256,7 +256,7 @@ class ExampleSet:
                     new_image_info.append(image_info)
                 ex[key] = new_image_info
             new_exs.append(ex)
-        self.exs = new_exs  
+        self.exs = new_exs
 
     def __len__(self):
         return len(self.exs)
