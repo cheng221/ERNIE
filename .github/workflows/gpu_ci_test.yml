@@ -5,6 +5,7 @@ on:
     branches:
       - develop
       - release/v1.0
+      - add_ernie_vl
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
