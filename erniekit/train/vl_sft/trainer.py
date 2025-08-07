@@ -822,6 +822,10 @@ class SFTTrainer(PretrainingTrainer):
             delattr(self, "_past")
 
         logger.info("\nTraining completed. \n")
+        # unlink shared_memory if used.
+        if self.args.unified_checkpoint:
+            self.unified_checkpoint_handler.unlink_shared_memory()
+          
         if args.load_best_model_at_end and self.state.best_model_checkpoint is not None:
             if args.local_rank != -1:
                 dist.barrier()
