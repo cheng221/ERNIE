@@ -54,6 +54,12 @@ class ServerArguments:
     gpu_memory_utilization: float = field(
         default=0.9, metadata={"help": "The fraction of GPU memory to be utilized."}
     )
+    quantization: str = field(
+        default=None,
+        metadata={
+            "help": "Model quantization strategy, when loading BF16 CKPT, specifying wint4 or wint8 supports lossless online 4bit/8bit quantization."
+        },
+    )
 
     # cache
     block_size: int = field(
