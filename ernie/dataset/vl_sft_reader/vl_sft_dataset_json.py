@@ -240,6 +240,23 @@ class ExampleSet:
                 self.exs = [json.loads(line) for line in fin]
         else:
             raise ValueError(f"Unsupported file type: {self._file_name}")
+        new_exs = []
+        for ex in self.exs:
+            for key in ["image_info", "video_info"]:
+                if key not in ex:
+                    continue
+                new_image_info = []
+                for image_info in ex[key]:
+                    url = image_info["image_url"]
+                    if url.startswith("http") or os.path.isabs(url):
+                        pass
+                    else:
+                        url = os.path.join(os.path.dirname(self._file_name), url)
+                    image_info["image_url"] = url
+                    new_image_info.append(image_info)
+                ex[key] = new_image_info
+            new_exs.append(ex)
+        self.exs = new_exs
 
     def __len__(self):
         return len(self.exs)
