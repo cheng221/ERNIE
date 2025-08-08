@@ -136,7 +136,7 @@ def broadcast_data_obj(data, src_rank, group):
                     ret_flat[g[0]] = data_chunk.reshape(g[1].shape)
 
     if this_rank != src_rank:
-        assert not [r for r in ret_flat if r is -1], ret_flat
+        assert not [r for r in ret_flat if r == -1], ret_flat
         data = pack_sequence_as(template, ret_flat)
     return data
 

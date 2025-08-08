@@ -550,8 +550,12 @@ def run_vl_sft(
         text_sft_dataset = None
         if finetuning_args.need_data and finetuning_args.is_train_text:
             # text SFT close multi-thread processing data
-            text_dataset_path_list = data_args.text_dataset_path.split(",")
-            text_dataset_prob_list = data_args.text_dataset_prob.split(",")
+            text_dataset_path_list = (
+                str(data_args.text_dataset_path).replace(" ", "").split(",")
+            )
+            text_dataset_prob_list = (
+                str(data_args.text_dataset_prob).replace(" ", "").split(",")
+            )
             train_task_group_text = []
             for filepath, prob in zip(text_dataset_path_list, text_dataset_prob_list):
                 train_task_group_text.append(

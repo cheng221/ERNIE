@@ -464,8 +464,12 @@ class SFTMultimodalDatasetJson(IterableDataset):
         """load"""
         process_fn = self.example_to_feature_stage3
 
-        train_dataset_path_list = self.train_dataset_path.split(",")
-        train_dataset_prob_list = self.train_dataset_prob.split(",")
+        train_dataset_path_list = (
+            str(self.train_dataset_path).replace(" ", "").split(",")
+        )
+        train_dataset_prob_list = (
+            str(self.train_dataset_prob).replace(" ", "").split(",")
+        )
 
         for src_id, path, prob in zip(
             range(len(train_dataset_path_list)),
