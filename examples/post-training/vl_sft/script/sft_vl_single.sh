@@ -101,7 +101,7 @@ python -m paddle.distributed.launch \
     --output_dir ${output_dir} \
     --per_device_eval_batch_size 1 \
     --per_device_train_batch_size 1 \
-    --global_batch_size 4 \
+    --gradient_accumulation_steps 4 \
     --train_dataset_path "examples/data/sft_vl-train_demo1.jsonl" \
     --train_dataset_prob "1" \
     --max_steps 8000 \

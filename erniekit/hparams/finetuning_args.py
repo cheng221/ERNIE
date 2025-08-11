@@ -19,7 +19,6 @@ from paddle.distributed import fleet
 from paddleformers.trainer import TrainingArguments
 from paddleformers.utils.log import logger
 from paddleformers.trainer.trainer_utils import ShardingOption
-from ernie.utils.training_utils import reset_per_device_batch_size
 
 try:
     from paddle.distributed import in_auto_parallel_align_mode
@@ -86,13 +85,6 @@ class PreTrainingArguments(TrainingArguments):
     )
     data_filelist: tuple = field(default=None, metadata={"help": "data file list"})
     data_weights: tuple = field(default=None, metadata={"help": "data weights"})
-    global_batch_size: int = field(
-        default=-1,
-        metadata={
-            "help": "if `global_batch_size` and `per_device_train_batch_size` is provied, "
-            "`gradient_accumulation_steps` will be ignored"
-        },
-    )
     from_scratch: Optional[int] = field(
         default=1, metadata={"help": "if set, ignore init_ckpt"}
     )
@@ -515,28 +507,14 @@ class FinetuningArguments(
         if in_auto_parallel_align_mode():
             self.adaptive_norm_clip = False
 
-        if self.global_batch_size > 0:
-            micro_bsz, acc_steps = reset_per_device_batch_size(
-                self.global_batch_size,
-                self.per_device_train_batch_size,
-                self.dataset_world_size,
-            )
-            logger.info(
-                f"global_batch={self.global_batch_size} micro-bsz:{micro_bsz}, accumulate_steps:{acc_steps}"
-            )
-            if (
-                acc_steps != 1
-                and self.gradient_accumulation_steps != 1
-                and acc_steps != self.gradient_accumulation_steps
-            ):
-                raise ValueError(
-                    f"global_accumulation_steps={self.gradient_accumulation_steps}"
-                    f"& global_batch={self.global_batch_size} are both set"
-                )
-            self.per_device_train_batch_size, self.gradient_accumulation_steps = (
-                micro_bsz,
-                acc_steps,
-            )
+        self.global_batch_size = (
+            self.per_device_train_batch_size
+            * self.dataset_world_size
+            * self.gradient_accumulation_steps
+        )
+        logger.info(
+            f"reset finetuning arguments global_batch_size to {self.global_batch_size}"
+        )
 
         self.max_gradient_accumulation_steps = self.gradient_accumulation_steps
 
