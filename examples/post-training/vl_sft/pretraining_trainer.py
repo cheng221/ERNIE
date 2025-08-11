@@ -245,13 +245,6 @@ class PreTrainingArguments(TrainingArguments):
             "than this will be truncated, sequences shorter will be padded."
         },
     )
-    global_batch_size: int = field(
-        default=-1,
-        metadata={
-            "help": "if `global_batch_size` and `per_device_train_batch_size` is provied, "
-            "`gradient_accumulation_steps` will be ignored"
-        },
-    )
     preprocessing_num_workers: Optional[int] = field(
         default=None,
         metadata={"help": "The number of processes to use for the preprocessing."},
@@ -576,28 +569,9 @@ class PreTrainingArguments(TrainingArguments):
             self.no_shuffle = 1
             self.no_part_shuffle = 1
 
-        if self.global_batch_size > 0:
-            micro_bsz, acc_steps = reset_per_device_batch_size(
-                self.global_batch_size,
-                self.per_device_train_batch_size,
-                self.dataset_world_size,
-            )
-            logger.info(
-                f"global_batch={self.global_batch_size} micro-bsz:{micro_bsz}, accumulate_steps:{acc_steps}"
-            )
-            if (
-                acc_steps != 1
-                and self.gradient_accumulation_steps != 1
-                and acc_steps != self.gradient_accumulation_steps
-            ):
-                raise ValueError(
-                    f"global_accumulation_steps={self.gradient_accumulation_steps}"
-                    f"& global_batch={self.global_batch_size} are both set"
-                )
-            self.per_device_train_batch_size, self.gradient_accumulation_steps = (
-                micro_bsz,
-                acc_steps,
-            )
+        self.global_batch_size = self.per_device_train_batch_size * \
+            self.dataset_world_size * self.gradient_accumulation_steps
+        logger.info(f"reset finetuning arguments global_batch_size to {self.global_batch_size}")
 
         self.max_gradient_accumulation_steps = self.gradient_accumulation_steps
 

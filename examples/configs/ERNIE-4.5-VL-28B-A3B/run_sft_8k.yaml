@@ -39,9 +39,8 @@ dataloader_num_workers: 1
 do_train: true
 batch_size: 1
 prefetch_factor: 10
-global_batch_size: 4
 seed: 42
-gradient_accumulation_steps: 1
+gradient_accumulation_steps: 4
 max_steps: 8000
 save_steps: 10000
 logging_steps: 1
