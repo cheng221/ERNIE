@@ -15,7 +15,6 @@
 
 import os
 import random
-from dataclasses import asdict
 from functools import partial
 
 import numpy as np
@@ -57,30 +56,6 @@ from data_processor.steps.end2end_processing import (
 from data_processor.image_preprocessor.image_preprocessor_adaptive import (
     AdaptiveImageProcessor,
 )
-
-
-def update_model_config_from_args(config: Ernie4_5_VLMoeConfig, model_args: dict):
-    """update model config from args
-
-    Args:
-        config (ErnieConfig): _description_
-        model_args (dict): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    if "vision_config" in model_args:
-        for k, v in model_args.pop("vision_config").items():
-            if hasattr(config, "vision_config") and hasattr(config.vision_config, k):
-                setattr(config.vision_config, k, v)
-            else:
-                logger.warning(f"vision_config key: {k} does not exist")
-    for k, v in model_args.items():
-        if hasattr(config, k):
-            setattr(config, k, v)
-        else:
-            logger.warning(f"model config key: {k} does not exist")
-    return config
 
 
 def get_resume_checkpoint_path(config):
@@ -381,7 +356,6 @@ def run_vl_sft(
         [-2, -1]
     ).repeat_interleave(cfg.vision_config.patch_size**2 * 1, -1)
 
-    cfg = update_model_config_from_args(cfg, asdict(model_args))
     cfg.use_flash_attention = model_args.use_flash_attention
     cfg.use_mem_eff_attn = model_args.use_mem_eff_attn
     cfg.use_flash_attn_with_mask = model_args.use_flash_attn_with_mask
