@@ -91,7 +91,6 @@ from ernie.lr_schedulers import (
     get_wsd_schedule_with_warmup,
 )
 from ernie.utils.misc import global_training_logs
-from ernie.utils.training_utils import reset_per_device_batch_size
 
 
 try:
@@ -569,9 +568,14 @@ class PreTrainingArguments(TrainingArguments):
             self.no_shuffle = 1
             self.no_part_shuffle = 1
 
-        self.global_batch_size = self.per_device_train_batch_size * \
-            self.dataset_world_size * self.gradient_accumulation_steps
-        logger.info(f"reset finetuning arguments global_batch_size to {self.global_batch_size}")
+        self.global_batch_size = (
+            self.per_device_train_batch_size
+            * self.dataset_world_size
+            * self.gradient_accumulation_steps
+        )
+        logger.info(
+            f"reset finetuning arguments global_batch_size to {self.global_batch_size}"
+        )
 
         self.max_gradient_accumulation_steps = self.gradient_accumulation_steps
 
