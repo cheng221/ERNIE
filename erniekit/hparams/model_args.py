@@ -71,7 +71,7 @@ class ModelArguments:
     )
     stage: str = field(
         default="SFT",
-        metadata={"help": "The type of training, including SFT, DPO."},
+        metadata={"help": "The type of training, including SFT, DPO, VL-SFT."},
     )
     use_flash_attention: bool = field(
         default=True,
