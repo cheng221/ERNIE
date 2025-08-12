@@ -16,6 +16,7 @@
 # Copyright (c) 2025 LLaMA-Factory
 # Licensed under the Apache License - https://github.com/hiyouga/LLaMA-Factory/blob/main/LICENSE
 
+import os
 import json
 import sys
 from pathlib import Path
@@ -25,7 +26,11 @@ import yaml
 from omegaconf import OmegaConf
 from paddleformers.trainer import PdArgumentParser
 
-from ..utils.process import is_env_enabled
+from ..utils.process import (
+    is_env_enabled,
+    remove_paddle_shm_files,
+    set_cuda_environment,
+)
 from .data_args import DataArguments
 from .export_args import ExportArguments
 from .finetuning_args import FinetuningArguments
@@ -215,6 +220,31 @@ def get_train_args(
     model_args, data_args, preprocess_args, generating_args, finetuning_args = (
         _parse_train_args(args)
     )
+
+    if model_args.stage == "VL-SFT":
+        os.environ["NCCL_DEBUG"] = "INFO"
+        os.environ["PYTHONUNBUFFERED"] = "1"
+        os.environ["FLAGS_use_auto_growth_pinned_allocator"] = "True"
+        os.environ["NCCL_IB_QPS_PER_CONNECTION"] = "8"
+        os.environ["NCCL_IB_TIMEOUT"] = "22"
+        os.environ["NCCL_IB_GID_INDEX"] = "3"
+        os.environ["NCCL_NVLS_ENABLE"] = "0"
+        os.environ["NCCL_IB_ADAPTIVE_ROUTING"] = "1"
+        os.environ["BCCL_BUS_BW_CALCULATE_MODE"] = "Agg"
+        os.environ["PADDLE_PG_TIMEOUT"] = "150000"
+        os.environ["FLAGS_enable_async_trace"] = "False"
+        os.environ["NCCL_PROXY_DUMP_SIGNAL"] = "10"
+        os.environ["CUDA_MODULE_LOADING"] = "LAZY"
+        os.environ["FLAGS_pipeline_nccl_comm_init_option"] = "1"
+        os.environ["FLAGS_sharding_v2_check_zero_padding"] = "1"
+        os.environ["FLAGS_use_paddle_recall_error"] = "0"
+        os.environ["PADDLE_DISABLE_CUDNN_FA"] = "1"
+
+        remove_paddle_shm_files()
+        set_cuda_environment()
+
+        os.environ["FLAGS_call_stack_level"] = "2"
+        os.environ["FLAGS_eager_communication_connection"] = "0"
     return model_args, data_args, preprocess_args, generating_args, finetuning_args
 
 

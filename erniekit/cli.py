@@ -18,7 +18,6 @@ import paddle
 import shlex
 import subprocess
 import sys
-import re
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
@@ -64,48 +63,6 @@ WELCOME = (
     + "|\n"
     + "-" * 48
 )
-
-
-# 第一部分：查找并删除/dev/shm/下以"paddle_"开头的文件
-def remove_paddle_shm_files():
-    try:
-        # 使用find命令查找文件并通过xargs删除
-        subprocess.run(
-            r'find /dev/shm/ -type f -name "paddle_*" -print0 | xargs -0 rm -f',
-            shell=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        print(f"删除文件时出错: {e}")
-
-
-# 第二部分：检查CUDA版本并设置环境变量
-def set_cuda_environment():
-    try:
-        # 获取nvidia-smi输出
-        nvidia_smi_output = subprocess.check_output(
-            ["nvidia-smi"], stderr=subprocess.PIPE, text=True
-        )
-
-        # 使用正则表达式提取CUDA版本
-        cuda_version_match = re.search(r"CUDA Version:\s+(\d+)", nvidia_smi_output)
-        if cuda_version_match:
-            cuda_version = cuda_version_match.group(1)
-            print(f"检测到CUDA版本: {cuda_version}")
-
-            # 如果不是CUDA 12，设置环境变量
-            if cuda_version != "12":
-                ld_library_path = os.environ.get("LD_LIBRARY_PATH", "")
-                new_ld_path = f"/usr/local/cuda/compat:{ld_library_path}"
-                os.environ["LD_LIBRARY_PATH"] = new_ld_path
-                print(f"已设置LD_LIBRARY_PATH: {new_ld_path}")
-        else:
-            print("无法从nvidia-smi输出中检测CUDA版本")
-
-    except subprocess.CalledProcessError as e:
-        print(f"执行nvidia-smi时出错: {e}")
-    except Exception as e:
-        print(f"处理CUDA版本时出错: {e}")
 
 
 def main():
@@ -202,30 +159,6 @@ def main():
             set_ascend_environment()
         except Exception as e:
             print("Unexpected error setting Ascend environment: %s", e)
-
-    os.environ["NCCL_DEBUG"] = "INFO"
-    os.environ["PYTHONUNBUFFERED"] = "1"
-    os.environ["FLAGS_use_auto_growth_pinned_allocator"] = "True"
-    os.environ["NCCL_IB_QPS_PER_CONNECTION"] = "8"
-    os.environ["NCCL_IB_TIMEOUT"] = "22"
-    os.environ["NCCL_IB_GID_INDEX"] = "3"
-    os.environ["NCCL_NVLS_ENABLE"] = "0"
-    os.environ["NCCL_IB_ADAPTIVE_ROUTING"] = "1"
-    os.environ["BCCL_BUS_BW_CALCULATE_MODE"] = "Agg"
-    os.environ["PADDLE_PG_TIMEOUT"] = "150000"
-    os.environ["FLAGS_enable_async_trace"] = "False"
-    os.environ["NCCL_PROXY_DUMP_SIGNAL"] = "10"
-    os.environ["CUDA_MODULE_LOADING"] = "LAZY"
-    os.environ["FLAGS_pipeline_nccl_comm_init_option"] = "1"
-    os.environ["FLAGS_sharding_v2_check_zero_padding"] = "1"
-    os.environ["FLAGS_use_paddle_recall_error"] = "0"
-    os.environ["PADDLE_DISABLE_CUDNN_FA"] = "1"
-
-    remove_paddle_shm_files()
-    set_cuda_environment()
-
-    os.environ["FLAGS_call_stack_level"] = "2"
-    os.environ["FLAGS_eager_communication_connection"] = "0"
 
     if command in distributed_funcs:
 
