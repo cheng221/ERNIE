@@ -21,6 +21,7 @@ import os
 import shutil
 import sys
 import time
+from paddle.io import Dataset
 from functools import partial
 from typing import List, Optional, Union
 
@@ -37,19 +38,6 @@ from paddle.distributed.fleet.utils.hybrid_parallel_util import (
 )
 from paddle.io import DataLoader
 
-try:
-    from paddle.distributed.fleet.utils.hybrid_parallel_util import (
-        obtain_optimizer_parameters_list,
-    )
-
-    _obtain_optimizer_parameters_list = obtain_optimizer_parameters_list
-except Exception:
-    try:
-        from paddle.distributed.fleet.meta_optimizers.dygraph_optimizer.hybrid_parallel_optimizer import (
-            _obtain_optimizer_parameters_list,
-        )
-    except Exception:
-        _obtain_optimizer_parameters_list = None
 
 from distutils.util import strtobool
 
@@ -83,12 +71,15 @@ from paddleformers.utils.batch_sampler import DistributedBatchSampler
 from paddleformers.utils.batch_sampler import (
     DistributedBatchSampler as NlpDistributedBatchSampler,
 )
+from ernie.dataset.dist_data_loader import DistDataLoader
 
-# from paddlenlp.utils.env import PADDLE_WEIGHTS_NAME
 from .pretraining_trainer import PretrainingTrainer
 
-from ernie.dataset.dist_data_loader import DistDataLoader
-from paddle.io import Dataset
+from paddle.distributed.fleet.utils.hybrid_parallel_util import (
+    obtain_optimizer_parameters_list,
+)
+
+_obtain_optimizer_parameters_list = obtain_optimizer_parameters_list
 
 
 class EmptyDataset(Dataset):

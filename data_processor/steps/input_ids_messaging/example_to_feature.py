@@ -522,7 +522,7 @@ class ExampleToFeature(ProcessorBase):
             if self.chat_template == "ernie":
                 split_token_id = self.cls_token_id
                 min_num = 2
-            elif self.chat_template == "deepseek":
+            elif self.chat_template == "ernie_vl":
                 split_token_id = self.sep_token_id
                 min_num = 1
             else:

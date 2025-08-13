@@ -447,7 +447,7 @@ def run_vl_sft(
         finetuning_args.is_train_text = getattr(data_args, "text_dataset_path", False)
         assert (
             finetuning_args.is_train_text or finetuning_args.is_train_mm
-        ), "纯文数据流和多模态数据流不能同时为空"
+        ), "At least one of is_train_text or is_train_mm must be specified"
 
         logger.info(f"[modality_ratio]: {finetuning_args.modality_ratio}")
         modality_ratio = (
@@ -494,15 +494,6 @@ def run_vl_sft(
                     data_processor=data_processor,
                 )
                 train_dataset._load(shuffle_json=True)
-                # train_dataset = MapDataset(
-                #    MixExampleSetJsonMap(
-                #        args,
-                #        lm_weights=0.0,
-                #        mm_weights=1.0,
-                #        lm_example_set=None,
-                #        mm_example_set=train_dataset,
-                #    )
-                # )
                 train_dataset = IterDataset(
                     MixExampleSetJson(
                         finetuning_args,
