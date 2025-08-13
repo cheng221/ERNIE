@@ -13,7 +13,7 @@ concurrency:
 jobs:
   Test:
     name: Test
-    runs-on: [self-hosted, ernie-8gpu]
+    runs-on: [self-hosted, ernie-8gpu-2]
     steps:
       - name: Start Docker 
         run: |
