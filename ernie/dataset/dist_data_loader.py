@@ -514,10 +514,8 @@ class DistDataLoader(paddle.io.DataLoader):
 
         # init pp data comm group
         if self._hcg.get_pipe_parallel_world_size() > 1 and pp_broadcast:
-            print("Ting1")
             self._pp_data_group = self._init_dataloader_comm_group()
         else:
-            print("Ting2")
             log.info("skip pp broadcast")
             self._pp_data_group = None
 
@@ -756,17 +754,13 @@ class DistDataLoader(paddle.io.DataLoader):
                 data = None
 
             if self.mp_group is not None and self.mp_group.nranks > 1 and pp_broadcast:
-                print("TTing1: ", self.mp_group.ranks, pp_broadcast)
-                print(data)
                 data = broadcast_data_obj(
                     data,
                     self.mp_src_rank,
                     self.mp_group,
                 )
-                print("============================================")
-                print(data)
+
             if self._pp_data_group is not None and self._pp_data_group.nranks > 1:
-                print("TTing: ", self._pp_data_group.ranks)
                 data = broadcast_data_obj(
                     data,
                     self._pp_data_group.ranks[0],
