@@ -34,24 +34,6 @@ class Example:
     source: str
 
 
-def contains_markup(text, special_markups):
-    """Checks if any markup tokens exist in the text.
-
-    Args:
-        text (List[str]): Input text sequences to check.
-        special_markups (List[str]): Markup tokens to search for.
-
-    Returns:
-        bool: True if any markup is found, False otherwise.
-    """
-
-    for sp_token in special_markups:
-        for x in text:
-            if sp_token in x:
-                return True
-    return False
-
-
 def pad_batch_data(
     insts,
     pad_idx=0,

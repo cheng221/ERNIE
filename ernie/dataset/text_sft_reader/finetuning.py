@@ -30,8 +30,7 @@ from paddleformers.trainer import TrainerState
 from paddleformers.trainer.trainer import TRAINER_STATE_NAME
 
 from .data_utils import RandomNoReplacementSampler, sampling_pseudo_examples
-from ernie.dataset.data_utils import contains_markup, pad_batch_data
-from ernie.dataset.pvp import EBMarkUpRouter
+from ernie.dataset.data_utils import pad_batch_data
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +149,6 @@ class BaseReader:
         np.random.seed(self.random_seed)
 
         # setup markups
-        self.eb_markup_rounter = EBMarkUpRouter(
-            self.tokenizer, self.break_token, self.break_turn_token
-        )
         markups = [
             "search",
             "kg",
@@ -259,11 +255,6 @@ class BaseReader:
                     "label" in data and len(data["src"]) != len(data["label"])
                 ):
                     # print("label error in {}: skipping".format(input_file), "line_i:", line_i, "line:", line)
-                    continue
-                if (
-                    contains_markup(data["src"], self.tokenizer.markup_tokens)
-                    and len(data["src"]) < 2
-                ):
                     continue
                 if "ctxt_src" in data and len(data["src"]) != len(data["ctxt_src"]):
                     print(
@@ -438,7 +429,6 @@ class BaseReader:
                 weighted_task_indices,
                 sample_from_same_source_flags,
                 self.tokenizer,
-                self.eb_markup_rounter,
                 self.global_rng,
                 self.max_seq_len,
                 self.pseudo_strategy,
@@ -814,19 +804,6 @@ class KnowledgeBasedSFTReader(BaseReader):
                 example.src[turn_index].strip(),
                 example.tgt[turn_index].strip(),
             )
-            CONTAINS_MARKUP = False
-            for markup in self.tokenizer.markup_tokens:
-                if markup in src:
-
-                    CONTAINS_MARKUP = True
-                    break
-
-            if CONTAINS_MARKUP:
-
-                knowledge_tokens = tokenizer.tokenize(extract_knowledge(src))
-                src = example.src[turn_index - 1]
-                previous_cur_len += len(knowledge_tokens)
-
             tokens_src, tokens_target = tokenizer.tokenize(src), tokenizer.tokenize(tgt)
 
             if turn_index == len(example.src) - 1:
@@ -869,8 +846,6 @@ class KnowledgeBasedSFTReader(BaseReader):
             previous_cur_len += len(cur_tokens) + len(break_token_multi_turn)
 
             turn_index -= 1
-            if CONTAINS_MARKUP:
-                turn_index -= 1
 
         if len(tokens) <= 4:
             return []

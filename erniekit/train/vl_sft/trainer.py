@@ -1,4 +1,4 @@
-# Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import numpy as np
 import paddle
 import paddle.distributed as dist
 import paddle.distributed.fleet.meta_optimizers.dygraph_optimizer
-import tqdm
+from tqdm import tqdm
 from paddle.distributed.fleet.meta_optimizers.dygraph_optimizer.hybrid_parallel_optimizer import (
     HybridParallelOptimizer,
 )
@@ -125,6 +125,9 @@ class SFTTrainer(PretrainingTrainer):
         if self.args.need_data and self.train_dataset is None:
             self.train_dataset = EmptyDataset()
         # `pp_need_data`，data bradcast in model
+        print("pp_broadcast: ", not self.args.pp_need_data_degree)
+        print("tp: ", self.args.tensor_parallel_degree)
+        print("pp: ", self.args.pipeline_parallel_degree)
         _DataLoader = (
             partial(
                 DistDataLoader,
@@ -414,6 +417,7 @@ class SFTTrainer(PretrainingTrainer):
                 ), f"Error, get different globel step, please check! step list: {[x.item() for x in global_step_list]}"
 
             epochs_trained = self.state.global_step // num_update_steps_per_epoch
+            args.ignore_data_skip = True
             if not args.ignore_data_skip:
                 steps_trained_in_current_epoch = self.state.global_step % (
                     num_update_steps_per_epoch
