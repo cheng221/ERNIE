@@ -996,11 +996,7 @@ class Ernie4_5_Attention(nn.Layer):
 
         bsz, seq_len = attention_mask.shape
         if q.shape[-2] > 1:
-            padding_mask = (
-                paddle.ones([bsz, 1, seq_len, seq_len])
-                if q.shape[-2] > 1
-                else paddle.ones([bsz, 1, 1, seq_len])
-            )
+            padding_mask = paddle.ones([bsz, 1, seq_len, seq_len])
 
             for i in range(seq_len):
                 if int(~attention_mask[..., i]) == 0:
