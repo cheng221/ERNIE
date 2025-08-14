@@ -621,7 +621,9 @@ class Ernie4_5_VLMoeConfig(Ernie4_5_MoeConfig):
 
     def to_dict(self, saving_file=False):
         """to_dict"""
-        output = copy.deepcopy(self.__dict__)
+        
+        output = super().to_dict(saving_file=saving_file)
+
         if self.vision_config:
             output["vision_config"] = (
                 self.vision_config.to_diff_dict()
