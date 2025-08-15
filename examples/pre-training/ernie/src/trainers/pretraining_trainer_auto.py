@@ -82,7 +82,7 @@ from src.callbacks import (
     StopperCallback,
     ClipGradByAdaptiveNormCallback,
 )
-from src.datasets import (
+from src.datasets.dist_data_loader import (
     DistDataLoaderAuto,
 )
 from paddle.distributed import in_auto_parallel_align_mode
