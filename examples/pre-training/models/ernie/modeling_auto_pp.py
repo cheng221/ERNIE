@@ -33,13 +33,12 @@ from paddle.distributed.fleet.utils import recompute
 
 from models.moe.moe_utils_auto import get_mesh
 
+from models.ernie.modeling import RMSNorm
+
 from .modeling_auto import (
-    _parse_moe_group,
     ErnieDecoderLayerAuto,
     ErniePretrainedModelAuto,
-    LayerNorm,
-    RMSNorm,
-    FusedLayerNorm,
+    FastLayerNorm,
     ErniePretrainingCriterion,
     ErnieLMHead,
 )
@@ -215,14 +214,13 @@ class ErnieDecoderLayerAutoPP(nn.Layer):
             None.
         """
         if hasattr(config, "use_moe") and config.use_moe:
-            if config.moe_group in {"mp", "model", "tp", "mpdp"}:
+            if config.moe_group.lower() in {"mp", "model", "tp", "mpdp"}:
                 assert config.sequence_parallel
                 logger.info(
                     f"disable FFN tensor model parallel, moe-group={config.moe_group}"
                 )
                 config.disable_ffn_model_parallel = True
 
-            config.moe_group = _parse_moe_group(config.moe_group)
             if config.moe_group in fleet.auto.get_mesh().dim_names:
                 config.moe_world_size = fleet.auto.get_mesh().get_dim_size(
                     config.moe_group
@@ -236,14 +234,13 @@ class ErnieDecoderLayerAutoPP(nn.Layer):
         self.config = config
 
         if hasattr(config, "use_moe") and config.use_moe:
-            if config.moe_group in {"mp", "model", "tp", "mpdp"}:
+            if config.moe_group.lower() in {"mp", "model", "tp", "mpdp"}:
                 assert config.sequence_parallel
                 logger.info(
                     f"disable FFN tensor model parallel, moe-group={config.moe_group}"
                 )
                 config.disable_ffn_model_parallel = True
 
-            config.moe_group = _parse_moe_group(config.moe_group)
             if config.moe_group in fleet.auto.get_mesh().dim_names:
                 config.moe_world_size = fleet.auto.get_mesh().get_dim_size(
                     config.moe_group
@@ -282,11 +279,14 @@ class ErnieDecoderLayerAutoPP(nn.Layer):
                     )
         self.layer = ErnieDecoderLayerAuto(config, layer_idx, ipp)
 
-        Norm = RMSNorm if config.use_rmsnorm else LayerNorm
-        if not config.use_rmsnorm and config.fuse_ln:
-            Norm = FusedLayerNorm
+        if config.use_rmsnorm:
+            Norm = RMSNorm(config)
+        elif config.use_fast_ln:
+            Norm = FastLayerNorm(config)
+        else:
+            Norm = nn.LayerNorm(config.hidden_size, epsilon=config.rms_norm_eps)
         if self.layer_idx == self.config.num_hidden_layers - 1:
-            self.norm = Norm(config, -1)
+            self.norm = Norm
             self.lm_head = ErnieLMHead(config)
 
     def recompute_training(
@@ -575,8 +575,8 @@ class ErnieForCausalLMAutoPP(ErniePretrainedModelAuto):
             else:
                 logger.info("Use normal RMSNorm")
         else:
-            if self.config.fuse_ln:
-                logger.info("Use fusedLN")
+            if self.config.use_fast_ln:
+                logger.info("Use FastLN")
             else:
                 logger.info("Use normal LayerNorm")
 
