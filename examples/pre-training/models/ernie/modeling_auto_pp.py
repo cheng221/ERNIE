@@ -46,12 +46,6 @@ from .modeling_auto import (
 from paddle.distributed import in_auto_parallel_align_mode
 
 
-# Because param_name is generated based on the class name,
-# when changes in distributed strategies result in class modifications,
-# there may be mismatches during parameter loading.
-# You can achieve class name changes by importing the following environment variables.
-# Example: `export rowcol_parallel_linear_class_name_convert_map="tpsp->smp"`
-
 logger = logging.getLogger(__name__)
 
 try:
@@ -142,13 +136,11 @@ class ErnieChunk(nn.Layer):
             attention_mask = kwargs.get("attention_mask")
             position_ids = kwargs.get("position_ids")
             outputs = tuple([input_ids, attention_mask, position_ids])
-            # decoder layers
             for idx, (decoder_layer) in enumerate(self.layers):
                 outputs = decoder_layer(outputs)
             return outputs
         else:
             outputs = args
-            # decoder layers
             for idx, (decoder_layer) in enumerate(self.layers):
                 outputs = decoder_layer(outputs)
         return outputs
@@ -353,7 +345,6 @@ class ErnieDecoderLayerAutoPP(nn.Layer):
                 return_dict if return_dict is not None else self.config.use_return_dict
             )
 
-            # retrieve input_ids and inputs_embeds
             if input_ids is not None:
                 batch_size, seq_length = input_ids.shape
             else:
@@ -372,14 +363,7 @@ class ErnieDecoderLayerAutoPP(nn.Layer):
             )
 
             if self.config.sequence_parallel:
-                # [B, S, H] -> [S, B, H]
                 inputs_embeds = paddle.transpose(inputs_embeds, [1, 0, 2])
-                # if token_type_ids is not None:
-                # token_type_ids = token_type_ids.reshape([-1, 1])
-                # token_type_ids = dist.reshard(
-                #     token_type_ids, global_mesh, [dist.Replicate() for _ in range(len(global_mesh._shape))]
-                # )
-                # token_type_ids = token_type_ids.reshape([-1])
             global_mesh = global_mesh_starts_with_pp()
 
             if position_ids is not None:
@@ -421,7 +405,6 @@ class ErnieDecoderLayerAutoPP(nn.Layer):
 
             args = return_args(hidden_states, attention_mask, position_ids)
 
-        # decoder layers
         hidden_states, attention_mask, position_ids = parse_args(args)
 
         all_hidden_states = () if output_hidden_states else None
@@ -559,8 +542,6 @@ class ErnieForCausalLMAutoPP(ErniePretrainedModelAuto):
                 config.tensor_parallel_degree > 1
             ), f"sequence-parallel needs mp>1, got mp={config.tensor_parallel_degree}"
 
-        # initialize-trick for big model, see
-        # https://github.com/bigscience-workshop/bigscience/blob/master/train/tr11-176B-ml/README.md#std-init
         new_initializer_range = math.sqrt(0.3333 / config.hidden_size)
         logger.info(
             f"change initializer-range from {config.initializer_range} to {new_initializer_range}"

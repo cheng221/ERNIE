@@ -115,7 +115,7 @@ class ErnieConfig(PretrainedConfig):
         num_hidden_layers=2,
         num_attention_heads=2,
         head_dim=None,
-        initializer_range=0.02,  # no use
+        initializer_range=0.02,
         rms_norm_eps=1e-6,
         use_cache=False,
         use_flash_attn=True,
@@ -260,7 +260,7 @@ class ErnieConfig(PretrainedConfig):
         self.use_recompute_dnd = use_recompute_dnd
 
         self.use_mp_gathered_weight = use_mp_gathered_weight
-        self.selective_no_recompute_num = selective_no_recompute_num  # only PP
+        self.selective_no_recompute_num = selective_no_recompute_num
 
         self.refined_recompute = refined_recompute
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
@@ -285,7 +285,6 @@ class ErnieConfig(PretrainedConfig):
         self.loss_subbatch_seqlen = loss_subbatch_seqlen
         self.gate_force_zero_padding_grad = gate_force_zero_padding_grad
 
-        # 默认的 fp8 设置
         default_fp8_configs = {
             "quant_scheme": "DelayedScaling",
             "recipe": {
@@ -320,7 +319,6 @@ class ErnieConfig(PretrainedConfig):
                 else:
                     default_dict[key] = value
 
-        # 更新默认设置
         update_nested_dict(default_fp8_configs, fp8_configs)
         self.fp8_configs = default_fp8_configs
         self.use_fp8 = use_fp8
@@ -593,10 +591,6 @@ class ErnieMoEConfig(ErnieConfig):
         self.multi_token_pred_lambda = multi_token_pred_lambda
         self.enable_mtp_magic_send = enable_mtp_magic_send
 
-        # The insert_empty_layer is a list of integer which will be used under pipeline parallel.
-        # After each layer indicated in the insert_empty_layer, an empty layer will be inserted.
-        # For example, a model with 4 layers, insert_empty_layer = [1, 3], the model actually passed to
-        # pp is: transformer, transformer, EMPTY, transformer, transformer, EMPTY
         self.insert_empty_layer = insert_empty_layer
 
         # elastic
@@ -664,9 +658,6 @@ class ErnieMoEConfig(ErnieConfig):
                 insert_empty_layer, list
             ), "pp_no_recompute_layer should be a list"
 
-            # Indicating layers not do recompute under pipeline parallel.
-            # Note that, when insert_empty_layer is not None, the pp_no_recompute_layer should be indicating
-            # layers number in origin model structure, AKA model before insert empty layers.
         self.pp_no_recompute_layer = pp_no_recompute_layer
         self.register_nonsaveable_keys("moe_group")
         self.register_nonsaveable_keys("pp_no_recompute_layer")

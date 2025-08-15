@@ -14,9 +14,7 @@
 
 # !/usr/bin/env python3
 
-import hashlib
 import numpy as np
-import logging
 
 import paddle
 from paddle import distributed as dist
@@ -27,43 +25,7 @@ from paddle.distributed import fleet
 from models.comm_utils import (
     scatter,
     all_gather,
-    reduce_scatter,
 )
-
-
-from paddle.distributed import in_auto_parallel_align_mode
-
-
-try:
-    from paddle.nn.functional import gemm_reduce_scatter, all_gather_gemm
-except ImportError:
-    gemm_reduce_scatter = None
-    all_gather_gemm = None
-    flux = None
-
-logger = logging.getLogger(__name__)
-
-if not hasattr(paddle.Tensor, "contiguous"):
-
-    def contiguous(self):
-
-        return self
-
-    setattr(paddle.Tensor, "contiguous", contiguous)
-
-
-if not hasattr(paddle.Tensor, "_md5sum"):
-
-    def _md5sum(self):
-        numpy_array = np.array(self)
-        array_bytes = numpy_array.tobytes()
-        return hashlib.md5(array_bytes).hexdigest()
-
-    setattr(paddle.Tensor, "_md5sum", _md5sum)
-
-
-def get_hcg():
-    return fleet.get_hybrid_communicate_group()
 
 
 class ScatterOp(PyLayer):
@@ -77,50 +39,6 @@ class ScatterOp(PyLayer):
     @staticmethod
     def backward(ctx, grad):
         return all_gather(grad, axis=ctx.axis, group=ctx.group)
-
-
-class GatherOp(PyLayer):
-
-    @staticmethod
-    def forward(ctx, input, axis=0, group=None):
-        ctx.axis = axis
-        ctx.group = group
-        return all_gather(input, axis=axis, group=group)
-
-    @staticmethod
-    def backward(ctx, grad):
-        return scatter(grad, axis=ctx.axis, group=ctx.group)
-
-
-class AllGatherOp(PyLayer):
-
-    @staticmethod
-    def forward(ctx, input, group=None):
-        ctx.group = group
-        return all_gather(input, group=group)
-
-    @staticmethod
-    def backward(ctx, grad):
-        if in_auto_parallel_align_mode():
-            group = ctx.group
-            if group is None:
-                group = get_hcg().get_model_parallel_group()
-            pg = group.process_group
-            pg.allreduce(grad).wait()
-            return paddle.split(grad, group.nranks, axis=0)[group.rank]
-        else:
-            return reduce_scatter(grad, group=ctx.group)
-
-
-class ReduceScatterOp(PyLayer):
-    @staticmethod
-    def forward(ctx, input, group=None):
-        ctx.group = group
-        return reduce_scatter(input, group=group)
-
-    @staticmethod
-    def backward(ctx, grad):
-        return all_gather(grad, group=ctx.group)
 
 
 class AllGatherVarlenOp(PyLayer):
@@ -177,40 +95,6 @@ class AllGatherVarlenOp(PyLayer):
         if ctx.padding > 0:
             grad = grad[: ctx.shape0]
         return grad
-
-
-class GemmReduceScatterOp(PyLayer):
-
-    @staticmethod
-    def forward(ctx, input, weight, group):
-
-        ctx.save_for_backward(input, weight)
-        ctx.group = group
-        output = gemm_reduce_scatter(input, weight, group)
-        return output
-
-    @staticmethod
-    def backward(ctx, grad):
-        input, weight = ctx.saved_tensor()
-        group = ctx.group
-        if input.stop_gradient and weight.stop_gradient:
-            return None, None
-
-        if input.stop_gradient:
-            input_grad = None
-            grad_parallel = None
-        else:
-            input_grad, grad_parallel = all_gather_gemm(
-                grad, weight, group, deepcopy_input_parallel=False
-            )
-
-        if weight.stop_gradient:
-            weight_grad = None
-        else:
-            if grad_parallel is None:
-                grad_parallel = all_gather(grad)
-            weight_grad = paddle.matmul(input, grad_parallel, transpose_x=True)
-        return input_grad, weight_grad
 
 
 def sequence_parallel_sparse_mask_labels(labels, ignore_label=-100):

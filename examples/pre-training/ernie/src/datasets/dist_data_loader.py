@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-DistDataLoader is a wrapper of paddle.io.DataLoader.
-It is used to support hybrid parallelism.
-It can replace paddle.io.DataLoader in most cases.
-"""
 import logging
 import hashlib
 from collections import deque
@@ -63,9 +58,6 @@ class DummyDataset(paddle.io.Dataset):
 
 
 class DistDataLoader(paddle.io.DataLoader):
-    """
-    DistDataLoader is a wrapper of paddle.io.DataLoader.
-    """
 
     def __init__(
         self,
@@ -102,13 +94,11 @@ class DistDataLoader(paddle.io.DataLoader):
         self.need_magic_trans = need_magic_trans
         self._hcg = fleet.get_hybrid_communicate_group()
 
-        # init pp data comm group
         if self._hcg.get_pipe_parallel_world_size() > 1 and pp_broadcast:
             self._pp_data_group = self._init_dataloader_comm_group()
         else:
             self._pp_data_group = None
 
-        # tensor parallel message
         self.mp_rank = self._hcg.get_model_parallel_rank()
         self.mp_group = self._hcg.get_model_parallel_group()
         self.mp_src_rank = self._hcg.get_model_parallel_group_src_rank()
@@ -248,7 +238,6 @@ class DistDataLoader(paddle.io.DataLoader):
             )
         get_timers() and get_timers()("read-raw-data").stop()
 
-        # broadcast data
         pp_broadcast = (self._pp_data_group is None) or self.pp_rank == 0
         if self.mp_group is not None and self.mp_group.nranks > 1 and pp_broadcast:
             (
@@ -390,9 +379,9 @@ def broadcast_data_list(data_list, datatype, comm_rank=0, comm_group=None, src_r
         i += 1 + rank
 
     if comm_rank == 0:
-        assert (
-            data.dtype == datatype
-        ), f"input has data type {data.dtype} which " f"is different than {datatype}"
+        assert data.dtype == datatype, (
+            f"input has data type {data.dtype} which " f"is different than {datatype}"
+        )
         data_b = paddle.concat(
             [d.to(get_env_device()).reshape([-1]) for d in data_list], 0
         )
@@ -403,7 +392,6 @@ def broadcast_data_list(data_list, datatype, comm_rank=0, comm_group=None, src_r
     else:
         data_b = paddle.empty([numel], dtype=datatype).to(get_env_device())
 
-    # Broadcast
     paddle.distributed.broadcast(data_b, src_rank, group=comm_group).wait()
 
     ret = []
@@ -557,7 +545,7 @@ class DistDataLoaderAuto(DistDataLoader):
                 raise NotImplementedError
                 has_images = paddle.full([data_world_size, 1], True, dtype="bool")
             if image_type_ids is None:
-                image_type_ids = paddle.zeros_like(token_type_ids)  # padding for dy2st
+                image_type_ids = paddle.zeros_like(token_type_ids)
             input_list = [
                 input_ids,
                 labels,

@@ -51,7 +51,6 @@ class ClipGradByAdaptiveNormCallback(TrainerCallback):
         resume_from_checkpoint = (
             None if not args.resume_from_checkpoint else args.resume_from_checkpoint
         )
-        # Load potential model checkpoint
         if isinstance(resume_from_checkpoint, bool) and resume_from_checkpoint:
             resume_from_checkpoint = get_last_checkpoint(args.output_dir)
             if resume_from_checkpoint is None:
@@ -62,7 +61,6 @@ class ClipGradByAdaptiveNormCallback(TrainerCallback):
         if resume_from_checkpoint is None:
             return
 
-        # if use distributed training
         if args.world_size > 1:
             process_index = args.process_index
             path = os.path.join(

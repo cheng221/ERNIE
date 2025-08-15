@@ -14,7 +14,6 @@
 
 from .gc_callback import GCCallback
 from .logging_callback import LoggingCallback
-from .progressive_batching_callback import ProgreesiveBatchingCallback
 from .stopper_callback import StopperCallback
 from .adaptivegradclip_callback import ClipGradByAdaptiveNormCallback
 from .moe_correction_bias_adjust_callback import MoECorrectionBiasAdjustCallback
@@ -36,5 +35,4 @@ __all__ = [
     "OrthogonalCallback",
     "ClipGradByAdaptiveNormCallback",
     "StopperCallback",
-    "ProgreesiveBatchingCallback",
 ]
