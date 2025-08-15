@@ -993,29 +993,37 @@ class Ernie4_5_Attention(nn.Layer):
         v = paddle.repeat_interleave(v, replicate, axis=1)
 
         scale_qk_coeff = self.config.get("scale_qk_coeff", 1.0) * self.head_dim**0.5
+        if attention_mask.ndim == 2:
+            bsz, seq_len = attention_mask.shape
+            if q.shape[-2] > 1:
+                padding_mask = paddle.ones([bsz, 1, seq_len, seq_len])
 
-        bsz, seq_len = attention_mask.shape
-        if q.shape[-2] > 1:
-            padding_mask = paddle.ones([bsz, 1, seq_len, seq_len])
+                for i in range(seq_len):
+                    if int(~attention_mask[..., i]) == 0:
+                        padding_mask[..., i, :] = 0
 
-            for i in range(seq_len):
-                if int(~attention_mask[..., i]) == 0:
-                    padding_mask[..., i, :] = 0
-
-            expaned_attn_mask = (
-                paddle.ones([attention_mask.shape[0], 1, seq_len, seq_len])
-                * padding_mask
-            )
-            causal_attention_mask = paddle.tril(expaned_attn_mask).astype(q.dtype)
+                expaned_attn_mask = (
+                    paddle.ones([attention_mask.shape[0], 1, seq_len, seq_len])
+                    * padding_mask
+                )
+                causal_attention_mask = paddle.tril(expaned_attn_mask).astype(q.dtype)
+                causal_attention_mask = paddle.where(
+                    causal_attention_mask > 0,
+                    paddle.to_tensor(0, dtype=q.dtype),
+                    paddle.finfo(q.dtype).min,
+                )
+            else:
+                causal_attention_mask = paddle.zeros(
+                    [attention_mask.shape[0], 1, 1, seq_len]
+                )
+        elif attention_mask.ndim == 4 and attention_mask.dtype == bool:
             causal_attention_mask = paddle.where(
-                causal_attention_mask > 0,
-                paddle.to_tensor(0, dtype=q.dtype),
+                attention_mask,
+                paddle.to_tensor(0.0, dtype=q.dtype),
                 paddle.finfo(q.dtype).min,
             )
         else:
-            causal_attention_mask = paddle.zeros(
-                [attention_mask.shape[0], 1, 1, seq_len]
-            )
+            causal_attention_mask = None
         product = paddle.matmul(x=q.scale(1.0 / scale_qk_coeff), y=k, transpose_y=True)
         product = product.cast(paddle.float32)
 
