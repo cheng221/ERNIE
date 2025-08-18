@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import logging
-import hashlib
 from collections import deque
 from collections import OrderedDict
 from itertools import groupby
@@ -21,7 +20,6 @@ from functools import reduce
 from dataclasses import dataclass
 
 import numpy as np
-import os
 import paddle
 from paddle.distributed import fleet
 import paddle.distributed as dist
@@ -41,15 +39,6 @@ input_ids_for_mtp = deque()
 log = logging.getLogger(__name__)
 
 _MAX_DATA_DIM = 64
-
-VOCAB_SIZE = os.getenv("VOCAB_SIZE")
-G_DEBUG_DATA_MD5 = os.getenv("G_DEBUG_DATA_MD5")
-
-
-def md5(tensor):
-    numpy_array = tensor.numpy()
-    array_bytes = numpy_array.tobytes()
-    return hashlib.md5(array_bytes).hexdigest()
 
 
 class DummyDataset(paddle.io.Dataset):
@@ -310,12 +299,6 @@ class DistDataLoader(paddle.io.DataLoader):
                 global input_ids_for_mtp
                 input_ids_for_mtp.append(input_ids)
 
-        if VOCAB_SIZE is not None:
-            if input_ids is not None:
-                input_ids %= int(VOCAB_SIZE)
-            if labels is not None:
-                labels %= int(VOCAB_SIZE)
-
         to_return = OrderedDict(
             [
                 ("input_ids", input_ids),
@@ -348,9 +331,6 @@ class DistDataLoader(paddle.io.DataLoader):
         ]
         for k in none_keys:
             to_return.pop(k)
-        if G_DEBUG_DATA_MD5 and int(G_DEBUG_DATA_MD5):
-            printable = map_structure(lambda i: md5(i), to_return)
-            logger.info(f"data-md5: {printable}")
         return to_return
 
 
