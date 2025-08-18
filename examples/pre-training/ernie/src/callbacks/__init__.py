@@ -15,7 +15,6 @@
 from .gc_callback import GCCallback
 from .logging_callback import LoggingCallback
 from .stopper_callback import StopperCallback
-from .adaptivegradclip_callback import ClipGradByAdaptiveNormCallback
 from .moe_correction_bias_adjust_callback import MoECorrectionBiasAdjustCallback
 from .moe_logging_callback import GlobalRNGCallback, MoeLoggingCallback
 from .sp_grad_sync_callback import SPGradSyncCallback
@@ -33,6 +32,5 @@ __all__ = [
     "MoECorrectionBiasAdjustCallback",
     "FP8QuantWeightCallback",
     "OrthogonalCallback",
-    "ClipGradByAdaptiveNormCallback",
     "StopperCallback",
 ]

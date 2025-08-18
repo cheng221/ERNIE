@@ -200,6 +200,7 @@ class GateCombine(PyLayer):
 
     @staticmethod
     def backward(ctx, grad_y, *_):
+        # assert moe_combine is not None
         grad_x, grad_combine_weight_helper = paddle._C_ops.moe_combine_grad(
             ctx.x, ctx.combine_weights, ctx.scatter_index, grad_y
         )

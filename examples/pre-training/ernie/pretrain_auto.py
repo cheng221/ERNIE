@@ -259,7 +259,6 @@ def main():
     (args,) = parser.parse_dict(dict(**model_args, **trainer_args))
 
     # 2. check and update
-    # setup_pipeline_config(config.trainer_args)
     if "enable_dp_comm_overlap" in config.trainer_args.pipeline_parallel_config:
         logger.warning(
             "Pipeline dp_comm_overlap and FusedLinearWithGradAdd cannot be used together."
@@ -290,7 +289,7 @@ def main():
     setup_logger_output_file(config.model_args.output_dir, args.local_rank)
     setup_device_and_seed(args)
     check_memory_preallocation(args)
-    run_fleet_tests()  # liyamei not need？
+    run_fleet_tests()
     set_dtype(args)
 
     # 4. init model
@@ -304,19 +303,10 @@ def main():
     tokenizer = setup_tokenizer(args, cfg)
 
     with paddle.LazyGuard():
-        if args.from_scratch:
-            model = model_class(cfg)
-        else:
-            model = model_class.from_pretrained(args.model_name_or_path, config=cfg)
+        model = model_class(cfg)
 
     logger.info(f"Using model: {type(model)}, config: {model.config}")
     paddle.set_default_dtype("float32")
-
-    # freeze # liyamei not need？
-    freeze_config = set(args.freeze_config.split())
-    if "freeze_vision" in freeze_config and hasattr(model, "freeze_vision"):
-        logger.info("Freezing model vision module")
-        model.freeze_vision()
 
     # 5. dataset
     logger.info("Loading datasets...")

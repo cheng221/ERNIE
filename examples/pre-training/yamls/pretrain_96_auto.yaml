@@ -1,4 +1,3 @@
-# -----------环境变量----------------------#
 env:
     HOME: null
 
@@ -7,7 +6,6 @@ model_args:
     model_name_or_path: model_configs_auto/
     tokenizer_name: ./ernie/src/tokenizers/tokenizer_model
     output_dir: ./output/
-    data_load_process_num: 40
     max_seq_length: 4096
     base_seq_length: 4096
     num_consecutive: 32
@@ -27,20 +25,6 @@ model_args:
 trainer_args:
     input_dir: "0.4 ./demo_data/data-1-part0 0.6 ./demo_data/data-1-part0"
     split: "998,1,1"
-    loss_spike_settings:
-      enable_loss_spike_watcher: 1
-      longjob_id: long-78f0ae68688b4659
-      supervised_filename: output/paddle_distributed_logs/metrics_rank0.json
-      delimiter: "Loading configuration file"
-      watch_loss_spike_interval: 20
-      loss_spike_restart_interval: 300
-      params:
-          - data_type: null
-            data_type_human_read: "纯文"
-            max_loss_thr: 2.0
-            max_tolerance_steps: 1
-            allow_loss_fallback: 0
-            start_check_step: 219700
 
     use_sp_callback: true
     moe_gate_lr_ratio: 0.01
@@ -60,8 +44,8 @@ trainer_args:
     learning_rate: 2.2e-4
     min_lr: 2.2e-5
 
-    global_batch_size: 2 # 16660
-    gradient_accumulation_steps: 1 # 8008: 14;
+    global_batch_size: 2
+    gradient_accumulation_steps: 1
     per_device_train_batch_size: 2
     per_device_eval_batch_size: 1
 
@@ -69,22 +53,16 @@ trainer_args:
     decay_function: 1-sqrt
     max_grad_norm: 1.0
 
-    adaptive_norm_clip: 0 # 4350 step后，关闭 adaptive-norm-clip
-    adaptive_norm_clip_ratio: 1.2
-    adaptive_norm_force_clear_state: 0 # 在切换分布式策略时, 开启强制刷新统计状态
-    adaptive_norm_enable_record: 1 # 开启更详细的裁剪日志
 
-    use_async_save: True # enable asynchronize save to gain efficiency
+    use_async_save: True
 
     weight_decay: 0.1
     warmup_steps: 200
     save_total_limit: 5
     bf16: True
     fp16_opt_level: "O2"
-    use_fp8: False
     scale_loss: 4096
     seed: 666
-    use_train_part_sharding: 1
     pre_alloc_memory: 60
 
     # # N7
@@ -104,24 +82,20 @@ trainer_args:
 
     # N1 dynamic auto
     tensor_parallel_degree: 4       # N7:8, N4:8, N1:4
-    # pipeline_parallel_degree: 1     # N7:7, N4:4, N1:2
     pipeline_parallel_degree: 2     # N7:7, N4:4, N1:2
     n_microbatches: 2
     pipeline_schedule_mode: "VPP"
     model_type: "ernie_pp"
-    virtual_pp_degree: 1            # N7:8, N4:8, N1:1
+    virtual_pp_degree: 1
 
     data_parallel_degree: 1
     sharding: "stage1"
-    sharding_degree: 1              # 170
-    # sharding_degree: 170 #
+    sharding_degree: 1
     amp_master_grad: 1
-    pipeline_parallel_config: enable_delay_scale_loss #enable_dp_comm_overlap
-    # pipeline_parallel_config: enable_delay_scale_loss enable_overlap_p2p_comm best_unbalanced_scheduler #enable_dp_comm_overlap
+    pipeline_parallel_config: enable_delay_scale_loss
     sharding_parallel_config: split_param enable_fuse_optimizer_states
     sharding_comm_buffer_size_MB: 2048
     tensor_parallel_config: replace_with_parallel_cross_entropy
-    # tensor_parallel_config: sync_param sync_grad sync_moment
 
 
     skip_profile_timer: False
@@ -131,27 +105,13 @@ trainer_args:
 
     load_sharded_model: True
     save_sharded_model: True
-    save_sharding_stage1_model_include_freeze_params: True
     ignore_load_lr_and_optim: False
     metrics_output_path: ./output/paddle_distributed_logs/
 
-    #TODO(@gexiao): move to longjob_args
-    pdc_download_ckpt: true
-    pdc_download_timeout: 300
 
-    # # Flash checkpoint settings
-    # enable_zero_cost_checkpoint: true
-    # save_tokenizer: false
-    # save_rng_states: false
-    # zcc_workers_num: 1
-    # zcc_pipeline_hooks_capacity_usage: 0.8
-    # flash_device_save_steps: 4
-    # zcc_save_ema_coef: 0.9993 #exp((4/10000)*ln(1-0.9999))
-    # zcc_ema_interval: 4
 
 
     use_moe: true
-    moe_with_send_router_loss: False
     moe_group: mp
     log_global_grad_norm: True
     enable_optimizer_timer: False
