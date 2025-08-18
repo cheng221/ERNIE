@@ -63,7 +63,7 @@ overwrite_output_dir: true
 
 # optim
 lr_scheduler_type: "cosine"
-learning_rate: 1.0e-05
+learning_rate: 3.0e-04
 min_lr: 1.0e-06
 moe_gate_lr_ratio: 0.01
 visual_ld: 0.9
