@@ -1344,7 +1344,7 @@ class PretrainingTrainer(Trainer):
                 dist.all_reduce(numel_tensor)
                 self.model_numel = numel_tensor.item() // self.args.dataset_world_size
 
-            tokens_per_steps = self.args.max_seq_length * total_train_batch_size
+            tokens_per_steps = self.args.max_seq_len * total_train_batch_size
             logs["tokens_trained_current_step"] = tokens_per_steps
             logs["timestamp"] = int(time.time() * 1000)
             logs["TFLOPS_per_sec_per_card"] = round(
