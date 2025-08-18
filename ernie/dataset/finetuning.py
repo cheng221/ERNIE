@@ -80,9 +80,13 @@ def create_dataset(**dataset_config):
         task_dataset_path=task_dataset_path,
         task_dataset_prob=task_dataset_prob,
         sub_dataset_type=sub_dataset_type,
-        process_fn=process_fc if dataset_config["sub_dataset_type"] == 'chatml' else process_example,
+        process_fn=(
+            process_fc
+            if dataset_config["sub_dataset_type"] == "chatml"
+            else process_example
+        ),
     )
-    
+
     sequence_dataset = SequenceDataset(
         dataset=example_dataset,
         tokenizer=dataset_config["tokenizer"],
@@ -185,34 +189,36 @@ def collate_fn(batch: List[List[Sequence]], tokenizer, model_args, max_seq_len: 
     input_dict = dict(zip(input_keys, return_list))
     return input_dict
 
+
 def process_fc(data, input_file):
-    multi_turns_messages = data['messages']
-    tools_list = data['tools']
-    label = data['label'] if 'label' in data else None
+    multi_turns_messages = data["messages"]
+    tools_list = data["tools"]
+    label = data["label"] if "label" in data else None
 
     system = ""
     is_system = False
-    if "system" in multi_turns_messages[0]['role']:
-        system = multi_turns_messages[0]['content']
+    if "system" in multi_turns_messages[0]["role"]:
+        system = multi_turns_messages[0]["content"]
         is_system = True
-    
-    # 默认所有的assistant都是1
+
+    # be default, all assistant output should be learned, labels are all 1
     if label is None:
         label = []
         for index, turn in enumerate(multi_turns_messages):
-            if "assistant" in turn['role']:
+            if "assistant" in turn["role"]:
                 label.append(1)
-    
+
     ex = Example(
         request={"messages": multi_turns_messages, "tools": tools_list},
         system=system,
         label=label,
         is_system=is_system,
         source=input_file,
-        is_function_call=True
+        is_function_call=True,
     )
 
     return ex
+
 
 def process_example(data, input_file):
     """Convert raw data example into training example.
@@ -540,14 +546,12 @@ class SequenceDataset(IterableDataset):
     def function_call_chat_template(self, messages, tools):
         history = messages[:-1]
         history_id = self.tokenizer.apply_chat_template(
-            {"messages": history, "tools": tools},
-            add_generation_prompt=True
-        )['input_ids']
+            {"messages": history, "tools": tools}, add_generation_prompt=True
+        )["input_ids"]
         history_len = len(history_id)
         all_id = self.tokenizer.apply_chat_template(
-            {"messages": messages, "tools": tools}, 
-            add_generation_prompt=False
-        )['input_ids']
+            {"messages": messages, "tools": tools}, add_generation_prompt=False
+        )["input_ids"]
         response_id = all_id[history_len:]
         return [history_id, response_id]
 
@@ -555,15 +559,17 @@ class SequenceDataset(IterableDataset):
         messages = example.request["messages"]
         tools = example.request["tools"]
         label = example.label
-        
+
         assistant_index = 0
         encoded_messages = []
         for index, turn in enumerate(messages):
-            if "assistant" in turn['role'] and label[assistant_index]:
-                message = copy.deepcopy(messages[:index + 1])
-                encoded_messages.append(self.function_call_chat_template(message, tools))
+            if "assistant" in turn["role"] and label[assistant_index]:
+                message = copy.deepcopy(messages[: index + 1])
+                encoded_messages.append(
+                    self.function_call_chat_template(message, tools)
+                )
                 assistant_index += 1
-        
+
         return encoded_messages
 
     def _postprocess_sequence(self, example, actual_example_num):
