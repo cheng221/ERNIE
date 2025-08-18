@@ -14,6 +14,7 @@
 # limitations under the License.
 """Paddle Ernie model"""
 import math
+import functools
 from functools import partial
 import logging
 from typing import Optional, Tuple
@@ -37,7 +38,6 @@ from paddle.incubate.nn.memory_efficient_attention import (
 )
 from paddle.distributed import in_auto_parallel_align_mode
 
-from models.comm_utils import subbatch
 
 from models.moe.top2_gate_auto import Top2Gate, TopKGateFusedAuto
 
@@ -54,14 +54,13 @@ from paddleformers.transformers.model_outputs import CausalLMOutputWithCrossAtte
 
 from paddleformers.transformers.model_utils import PretrainedModel, register_base_model
 
-from models.ernie.modeling import FusedDropoutImpl
 from models.sequence_parallel_utils_auto import (
     sequence_parallel_sparse_mask_labels,
 )
 from models.moe.moe_layer_auto import (
     MOELayerAuto,
 )
-from .configuration import ErnieMoEConfig
+from models.ernie.configuration_auto import ErnieMoEConfig
 from models.moe.moe_utils_auto import get_mesh
 
 
@@ -155,6 +154,70 @@ gate_class = dict(
     top2=Top2Gate,
     top2_fused=TopKGateFusedAuto,
 )
+
+
+def subbatch(f, arg_idx, axis, bs, out_idx, use_recompute=False, same_arg_idx={}):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+
+        assert len(arg_idx) == len(
+            axis
+        ), "Number of batching args and number of batching dims should match."
+
+        inps = [args[i] for i in arg_idx]
+        axis_width = [inp.shape[d] for inp, d in zip(inps, axis)]
+        assert len(set(axis_width)) == 1, "Batch sizes should be kept equal."
+
+        inp_axis = {inp: d for inp, d in zip(inps, axis)}
+
+        axis_width = axis_width[0]
+        if axis_width < bs:
+            return f(*args, **kwargs)
+
+        outs = []
+        for slice_at in np.arange(0, axis_width, bs):
+            _args = []
+            for i, inp in enumerate(args):
+                if i in same_arg_idx:
+                    assert (
+                        i > same_arg_idx[i]
+                    ), f"expect i > same_arg_idx[i], but got i: {i} and same_arg_idx[i]: {same_arg_idx[i]}"
+                    _args.append(_args[same_arg_idx[i]])
+                elif i in arg_idx:
+                    inp = inp.slice(
+                        [inp_axis[inp]],
+                        [slice_at],
+                        [min(inp.shape[inp_axis[inp]], slice_at + bs)],
+                    )
+                    _args.append(inp)
+                else:
+                    _args.append(inp)
+            if use_recompute:
+                out = paddle.distributed.fleet.utils.recompute(f, *_args, **kwargs)
+            else:
+                out = f(*_args, **kwargs)
+            outs.append(out)
+
+        return paddle.concat(outs, out_idx)
+
+    return wrapper
+
+
+class FusedDropoutImpl(nn.Layer):
+
+    def __init__(self, prob, mode):
+        super().__init__()
+        self.prob = prob
+        self.mode = mode
+
+        self.dropout = nn.Dropout(p=prob, mode=mode)
+
+    def forward(self, x, y):
+        if self.prob > 0:
+            x = self.dropout(x)
+        output = x + y
+
+        return output
 
 
 def is_pp_enable():

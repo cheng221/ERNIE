@@ -22,10 +22,46 @@ from paddle.autograd import PyLayer
 from paddle.distributed import fleet
 
 
-from models.comm_utils import (
-    scatter,
-    all_gather,
-)
+def scatter(input, group=None, axis=0):
+    if group is None:
+        hcg = fleet.get_hybrid_communicate_group()
+        group = hcg.get_model_parallel_group()
+    parallelism = group.nranks
+    if parallelism == 1:
+        return input.clone()
+    rank = group.rank
+    seq_len = input.shape[axis]
+    assert seq_len % parallelism == 0, (
+        f"Input sequence length {seq_len} can't be divided exactly"
+        f" by sequence parallelism {parallelism}"
+    )
+    interval = seq_len // parallelism
+    input = paddle.slice(
+        input, axes=[axis], starts=[interval * rank], ends=[interval * (rank + 1)]
+    )
+    input = paddle.assign(input)
+    return input
+
+
+def all_gather(input, group=None, axis=0):
+    if group is None:
+        hcg = fleet.get_hybrid_communicate_group()
+        group = hcg.get_model_parallel_group()
+    parallelism = group.nranks
+    if parallelism == 1:
+        return input.clone()
+    output_shape = input.shape
+    if axis == 0:
+        output_shape[axis] = output_shape[axis] * parallelism
+        output = paddle.empty(shape=output_shape, dtype=input.dtype)
+        dist.stream.all_gather(output, input, group=group, use_calc_stream=True)
+        return output
+    outputs = [
+        paddle.empty(output_shape, dtype=input.dtype) for _ in range(parallelism)
+    ]
+    dist.stream.all_gather(outputs, input, group=group, use_calc_stream=True)
+    output = paddle.concat(outputs, axis=axis)
+    return output
 
 
 class ScatterOp(PyLayer):

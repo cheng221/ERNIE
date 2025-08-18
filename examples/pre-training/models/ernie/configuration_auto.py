@@ -537,7 +537,6 @@ class ErnieMoEConfig(ErnieConfig):
         self.moe_group = moe_group
         self.moe_gate = moe_gate
         self.moe_num_attn_experts = moe_num_attn_experts
-        # implemtent size-all2all as https://arxiv.org/pdf/2303.06182.pdf
         self.moe_use_size_all2all = moe_use_size_all2all
         self.moe_logging = moe_logging
         self.num_experts_per_tok = num_experts_per_tok

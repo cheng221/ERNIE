@@ -44,16 +44,7 @@ from paddleformers.trainer import (
 
 from paddleformers.trainer.auto_trainer import AutoTrainer
 
-try:
-    from paddleformers.utils.env import (
-        PADDLE_OPTIMIZER_NAME,
-    )
-except ImportError:
-    from paddleformers.trainer.trainer import (
-        OPTIMIZER_NAME,
-    )
 
-    PADDLE_OPTIMIZER_NAME = OPTIMIZER_NAME
 from paddleformers.utils.batch_sampler import (
     DistributedBatchSampler as PaddleNLPDistributedBatchSampler,
 )
@@ -66,10 +57,10 @@ import paddle.distributed as dist
 
 
 from src.lr_schedulers import get_cosine_schedule_with_warmup
-from src.utils.training_utils import (
+from src.utils.training_utils_auto import (
     reset_per_device_batch_size,
 )
-from src.callbacks import (
+from src.callbacks_auto import (
     TensorBoardCallback,
     LoggingCallback,
     StopperCallback,
@@ -358,8 +349,7 @@ class AutoPreTrainingArguments(AutoTrainingArguments):
 
 class AutoPretrainingTrainer(AutoTrainer):
 
-    def __init__(self, _shit=None, args=None, model=None, callbacks=[], **kwargs):
-        assert _shit is None, "use key-ward argument"
+    def __init__(self, args=None, model=None, callbacks=[], **kwargs):
         callbacks = [
             LoggingCallback(),
             StopperCallback(),

@@ -27,14 +27,14 @@ from paddleformers.trainer import (
 from src.tokenizers.tokenization_eb_v2 import ErnieBotTokenizer
 from omegaconf.listconfig import ListConfig
 from omegaconf.dictconfig import DictConfig
-from src.callbacks import (
+from src.callbacks_auto import (
     GlobalRNGCallback,
 )
 from models.ernie import (
     ErnieForCausalLMAuto,
     ErnieForCausalLMAutoPP,
 )
-from models.ernie_moe.configuration import (
+from models.ernie.configuration_auto import (
     ErnieConfig,
     ErnieMoEConfig,
 )
@@ -43,7 +43,11 @@ from src.utils import (
     setup_logger_output_file,
 )
 from src.utils.misc import global_training_logs
-from pretrain import create_pretrained_dataset
+
+from paddleformers.data.causal_dataset import (
+    build_train_valid_test_datasets,
+    check_data_split,
+)
 
 
 from config import get_config
@@ -65,6 +69,55 @@ except ImportError:
 from paddle.distributed.fleet import collective_perf
 
 log_trainer_start()
+
+
+def create_pretrained_dataset(args):
+    assert args.input_dir is not None and len(args.input_dir.split()) > 1
+
+    check_data_split(
+        args.split,
+        args.do_train,
+        args.do_eval,
+        args.do_predict,
+    )
+
+    train_val_test_num_samples = [
+        args.per_device_train_batch_size
+        * args.dataset_world_size
+        * args.max_steps
+        * args.gradient_accumulation_steps,
+        args.per_device_eval_batch_size
+        * args.dataset_world_size
+        * args.eval_iters
+        * (args.max_steps // args.eval_steps + 1),
+        args.per_device_eval_batch_size * args.dataset_world_size * args.test_iters,
+    ]
+
+    train_dataset, valid_dataset, test_dataset = build_train_valid_test_datasets(
+        data_prefix=args.input_dir.split(),
+        data_impl="mmap",
+        splits_string=args.split,
+        train_val_test_num_samples=train_val_test_num_samples,
+        seq_length=args.max_seq_length + args.multi_token_pred_depth,
+        seed=args.seed,
+        skip_warmup=True,
+        data_cache_path=None,
+    )
+
+    from paddleformers.data import Stack
+
+    def _collate_data(data, stack_fn=Stack()):
+        tokens_ = stack_fn([x["text"] for x in data])
+
+        labels = tokens_[:, 1:]
+        tokens = tokens_[:, :-1]
+
+        return {
+            "input_ids": tokens,
+            "labels": labels,
+        }
+
+    return train_dataset, valid_dataset, test_dataset, _collate_data
 
 
 def update_model_config_from_args(config: ErnieConfig, model_args: dict):
