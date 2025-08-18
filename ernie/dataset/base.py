@@ -220,6 +220,16 @@ class MultiSourceDataset(IterableDataset):
                     ),
                     shuffle_file=shuffle_file,
                 )
+            elif each_sub_dataset_type  == 'chatml':
+                # only support for function call dataset
+                task["dataset"] = FileDataset(
+                    task["filepath"],
+                    process_fn=(
+                        partial(process_fn, task_name=task["task_name"]) if "task_name" in task else process_fn
+                    ),
+                    shuffle_file=shuffle_file,
+                )
+
             else:
                 raise NotImplementedError(f"Cannot support {each_sub_dataset_type} now.")
         sum_prob = sum([task["prob"] for task in self._task_group])
