@@ -545,14 +545,16 @@ class SequenceDataset(IterableDataset):
 
     def function_call_chat_template(self, messages, tools):
         history = messages[:-1]
-        history_id = self.tokenizer.apply_chat_template(
-            {"messages": history, "tools": tools}, add_generation_prompt=True
-        )["input_ids"]
-        history_len = len(history_id)
-        all_id = self.tokenizer.apply_chat_template(
-            {"messages": messages, "tools": tools}, add_generation_prompt=False
-        )["input_ids"]
-        response_id = all_id[history_len:]
+        history_str = self.tokenizer.apply_chat_template(
+            {"messages": history, "tools": tools}, add_generation_prompt=True, tokenize=False,
+        )
+        history_len = len(history_str)
+        all_str = self.tokenizer.apply_chat_template(
+            {"messages": messages, "tools": tools}, add_generation_prompt=False, tokenize=False,
+        )
+        response_str = all_str[history_len:]
+        history_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(history_str))
+        response_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(response_str))
         return [history_id, response_id]
 
     def _postprocess_fc_sequence(self, example):
