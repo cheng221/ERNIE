@@ -208,16 +208,20 @@ def process_fc(data, input_file):
             if "assistant" in turn["role"]:
                 label.append(1)
 
-    ex = Example(
-        request={"messages": multi_turns_messages, "tools": tools_list},
-        system=system,
-        label=label,
-        is_system=is_system,
-        source=input_file,
-        is_function_call=True,
-    )
-
-    return ex
+    assistant_index = 0
+    for index, turn in enumerate(multi_turns_messages):
+        if "assistant" in turn["role"] and label[assistant_index]:
+            message = copy.deepcopy(multi_turns_messages[: index + 1])
+            ex = Example(
+                request={"messages": message, "tools": tools_list},
+                system=system,
+                label=label,
+                is_system=is_system,
+                source=input_file,
+                is_function_call=True,
+            )
+            yield ex
+            assistant_index += 1
 
 
 def process_example(data, input_file):
@@ -546,32 +550,29 @@ class SequenceDataset(IterableDataset):
     def function_call_chat_template(self, messages, tools):
         history = messages[:-1]
         history_str = self.tokenizer.apply_chat_template(
-            {"messages": history, "tools": tools}, add_generation_prompt=True, tokenize=False,
+            {"messages": history, "tools": tools},
+            add_generation_prompt=True,
+            tokenize=False,
         )
         history_len = len(history_str)
         all_str = self.tokenizer.apply_chat_template(
-            {"messages": messages, "tools": tools}, add_generation_prompt=False, tokenize=False,
+            {"messages": messages, "tools": tools},
+            add_generation_prompt=False,
+            tokenize=False,
         )
         response_str = all_str[history_len:]
-        history_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(history_str))
-        response_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(response_str))
+        history_id = self.tokenizer.convert_tokens_to_ids(
+            self.tokenizer.tokenize(history_str)
+        )
+        response_id = self.tokenizer.convert_tokens_to_ids(
+            self.tokenizer.tokenize(response_str)
+        )
         return [history_id, response_id]
 
     def _postprocess_fc_sequence(self, example):
         messages = example.request["messages"]
         tools = example.request["tools"]
-        label = example.label
-
-        assistant_index = 0
-        encoded_messages = []
-        for index, turn in enumerate(messages):
-            if "assistant" in turn["role"] and label[assistant_index]:
-                message = copy.deepcopy(messages[: index + 1])
-                encoded_messages.append(
-                    self.function_call_chat_template(message, tools)
-                )
-                assistant_index += 1
-
+        encoded_messages = [self.function_call_chat_template(messages, tools)]
         return encoded_messages
 
     def _postprocess_sequence(self, example, actual_example_num):

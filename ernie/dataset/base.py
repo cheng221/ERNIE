@@ -13,6 +13,7 @@
 # limitations under the License.
 """ Basic datasets implement. """
 
+import collections
 import glob
 import gzip
 import json
@@ -93,7 +94,7 @@ class FileDataset(IterableDataset):
                 # ignore invalid example
                 if ex is None:
                     continue
-                elif isinstance(ex, list):
+                elif isinstance(ex, list) or isinstance(ex, collections.abc.Generator):
                     yield from ex
                 else:
                     yield ex
