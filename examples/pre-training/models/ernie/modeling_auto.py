@@ -1623,7 +1623,6 @@ class ErnieDecoderLayerAuto(nn.Layer):
                 shared_experts=shared_experts,
                 group=self.config.moe_group,
                 recompute=self.config.use_recompute_moe,
-                enable_logging=self.config.moe_logging,
                 k=self.config.moe_k,
                 enable_pbr=self.config.moe_use_bpr,
                 all_to_all_dropout=self.config.moe_all_to_all_dropout,

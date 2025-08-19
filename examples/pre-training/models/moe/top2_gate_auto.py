@@ -26,13 +26,9 @@ from paddle import nn
 from paddle.utils import unique_name
 from paddle.nn.clip import _squared_l2_norm
 from paddle.distributed import fleet
-from models.utils import global_training_logs_enabled
 from models.moe.moe_utils_auto import get_mesh, get_flatten_mesh
 
-try:
-    from src.utils.misc import global_training_logs
-except ModuleNotFoundError:
-    global_training_logs = {}
+
 try:
     import moe_router_loss_ops
 except ImportError:
@@ -368,7 +364,6 @@ class Top2Gate(nn.Layer):
         self.expert_drop = False
         self.eye_matrix = None
         self.eye_matrix_size = None
-        self.enable_logging = config.moe_logging
         self.norm_gate_logits = config.moe_norm_gate_logits
         self.one = paddle.ones([], dtype="float32")
 
@@ -581,25 +576,6 @@ class Top2Gate(nn.Layer):
                 + orthogonal_loss * self.moe_orthogonal_loss_lambda
             )
             router_loss.stop_gradient = False
-            if self.enable_logging and global_training_logs_enabled():
-                _log = {
-                    f"aux_loss_layer_{self.layer_idx}": l_aux.item(),
-                    f"orthogonal_loss_layer_{self.layer_idx}": orthogonal_loss.item(),
-                    f"zloss_layer_{self.layer_idx}": l_zloss.item(),
-                }
-                global_training_logs.update(
-                    **_log,
-                    **{
-                        k.replace(f"_layer_{self.layer_idx}", ""): v
-                        for k, v in _log.items()
-                    },
-                )
-                if self.use_token_type_bias:
-                    _bias_log = {
-                        f"token_type_bias_layer_{self.layer_idx}_expert{i}_gap": v
-                        for i, v in enumerate((self.bias[0] - self.bias[1]).numpy())
-                    }
-                    global_training_logs.update(**_bias_log)
 
         combine_weights = combine_weights.cast(orig_dtype)
         return (
@@ -690,22 +666,6 @@ class Top2Gate(nn.Layer):
         else:
             indices2_s = indices2_s_original
 
-        if self.enable_logging and global_training_logs_enabled():
-            global_training_logs.update(
-                **{
-                    "redispatch_acc": (indices2_s_original == indices2_s)
-                    .cast(paddle.float32)
-                    .mean()
-                    .item(),
-                    f"redispatch_acc_layer_{self.layer_idx}": (
-                        indices2_s_original == indices2_s
-                    )
-                    .cast(paddle.float32)
-                    .mean()
-                    .item(),
-                }
-            )
-
         mask2 = F.one_hot(indices2_s, num_classes=self.num_experts).cast(paddle.int64)
 
         locations1 = paddle.cumsum(mask1, axis=0) - 1
@@ -749,58 +709,6 @@ class Top2Gate(nn.Layer):
         scatter2_index = expert2_index * capacity + locations2_s
         scatter2_index = scatter2_index.cast("int64")
         dispatch2_mask = combine2_weight.cast(paddle.bool).detach()
-        if self.enable_logging and global_training_logs_enabled():
-            global_training_logs.update(
-                **{
-                    "top1_gate": (
-                        combine1_weight.sum()
-                        / (dispatch1_mask.cast("float32").sum() + 1e-9)
-                    ).item(),
-                    "top2_gate": (
-                        combine2_weight.sum()
-                        / (dispatch2_mask.cast("float32").sum() + 1e-9)
-                    ).item(),
-                    f"top1_gate_layer_{self.layer_idx}": (
-                        combine1_weight.sum()
-                        / (dispatch1_mask.cast("float32").sum() + 1e-9)
-                    ).item(),
-                    f"top2_gate_layer_{self.layer_idx}": (
-                        combine2_weight.sum()
-                        / (dispatch2_mask.cast("float32").sum() + 1e-9)
-                    ).item(),
-                }
-            )
-
-            seqlen = logits.shape[0]
-            top1_gate_experts_per_token = (
-                paddle.cast(dispatch1_mask, dtype="float32").sum() / seqlen
-            )
-            top2_gate_experts_per_token = (
-                paddle.cast(dispatch2_mask, dtype="float32").sum() / seqlen
-            )
-            leakage_experts_per_token = (
-                paddle.cast(
-                    (~dispatch1_mask) & (~dispatch2_mask), dtype="float32"
-                ).sum()
-                / seqlen
-            )
-
-            experts_per_token = (
-                top1_gate_experts_per_token + top2_gate_experts_per_token
-            )
-            _log = {
-                f"experts_per_token_layer_{self.layer_idx}": experts_per_token.item(),
-                f"top1_experts_per_token_layer_{self.layer_idx}": top1_gate_experts_per_token.item(),
-                f"top2_experts_per_token_layer_{self.layer_idx}": top2_gate_experts_per_token.item(),
-                f"leakage_experts_per_token_layer_{self.layer_idx}": leakage_experts_per_token.item(),
-            }
-            global_training_logs.update(
-                **_log,
-                **{
-                    k.replace(f"_layer_{self.layer_idx}", ""): v
-                    for k, v in _log.items()
-                },
-            )
 
         return (
             capacity,
@@ -956,24 +864,8 @@ class TopKGateFused(Top2Gate):
                 ), f"token_type_ids {token_type_ids.max()} >= bias shape {self.bias.shape[0]}"
                 bias = self.bias[token_type_ids]
                 logits = logits + bias
-            orthogonal_loss = None
             router_loss = paddle.zeros([1], dtype="float32")
             router_loss.stop_gradient = False
-            if (
-                self.enable_logging
-                and global_training_logs_enabled()
-                and orthogonal_loss is not None
-            ):
-                _log = {
-                    f"orthogonal_loss_layer_{self.layer_idx}": orthogonal_loss.item(),
-                }
-                global_training_logs.update(
-                    **_log,
-                    **{
-                        k.replace(f"_layer_{self.layer_idx}", ""): v
-                        for k, v in _log.items()
-                    },
-                )
 
         return logits, capacity, router_loss
 

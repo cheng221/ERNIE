@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .moe_clip import ClipGradForMOEByGlobalNorm
-from .moe_clip_auto import ClipGradForMOEByGlobalNormAuto
+from .logging import logger, setup_logger_output_file
 
-__all__ = ["ClipGradForMOEByGlobalNorm", "ClipGradForMOEByGlobalNormAuto"]
+__all__ = ["logger", "setup_logger_output_file"]

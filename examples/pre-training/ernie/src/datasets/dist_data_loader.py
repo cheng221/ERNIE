@@ -31,8 +31,6 @@ from paddleformers.utils.tools import get_env_device
 
 from src.utils.misc import global_training_logs
 
-logger = logging.getLogger(__name__)
-
 
 input_ids_for_mtp = deque()
 

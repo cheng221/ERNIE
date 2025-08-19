@@ -57,7 +57,7 @@ import paddle.distributed as dist
 
 
 from src.lr_schedulers import get_cosine_schedule_with_warmup
-from src.utils.training_utils_auto import (
+from src.utils_auto.training_utils import (
     reset_per_device_batch_size,
 )
 from src.callbacks_auto import (
@@ -68,7 +68,7 @@ from src.callbacks_auto import (
 from src.datasets.dist_data_loader import (
     DistDataLoaderAuto,
 )
-from src.clip import ClipGradForMOEByGlobalNorm
+from src.clip import ClipGradForMOEByGlobalNormAuto
 
 
 logger = logging.getLogger(__name__)
@@ -567,7 +567,7 @@ class AutoPretrainingTrainer(AutoTrainer):
                 def expert_fn(p):
                     return getattr(p, "no_sync", False)
 
-                grad_clip = ClipGradForMOEByGlobalNorm(
+                grad_clip = ClipGradForMOEByGlobalNormAuto(
                     self.args.max_grad_norm,
                     is_expert_param_func=expert_fn,
                     moe_group=_get_global_group(),

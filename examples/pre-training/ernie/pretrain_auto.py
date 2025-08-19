@@ -19,7 +19,7 @@ import numpy as np
 import random
 import paddle
 import paddle.distributed.fleet as fleet
-from src.utils import logger
+from src.utils_auto import logger
 from paddleformers.trainer import (
     PdArgumentParser,
     get_last_checkpoint,
@@ -39,10 +39,10 @@ from models.ernie.configuration_auto import (
     ErnieMoEConfig,
 )
 from src.trainers import AutoPretrainingTrainer, AutoPreTrainingArguments
-from src.utils import (
+from src.utils_auto import (
     setup_logger_output_file,
 )
-from src.utils.misc import global_training_logs
+from src.utils_auto.misc import global_training_logs
 
 from paddleformers.data.causal_dataset import (
     build_train_valid_test_datasets,

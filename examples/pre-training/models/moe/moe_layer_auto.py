@@ -37,13 +37,9 @@ from paddle.distributed import fleet
 import paddle.distributed as dist
 from paddle import Tensor
 from paddleformers.trainer.plugins.timer import get_timers
-from models.moe.top2_gate_auto import TopKGateFusedAuto
-from models.moe.top2_gate_auto import (
-    TopKGateFused,
-)
+from models.moe.top2_gate_auto import TopKGateFused, TopKGateFusedAuto
 from models.sequence_parallel_utils_auto import ScatterOp
-from models.utils import (
-    global_training_logs_enabled,
+from models.utils_auto import (
     manual_backward,
 )
 
@@ -53,10 +49,6 @@ from paddle.incubate.nn.functional import (
     moe_combine,
 )
 
-try:
-    from src.utils.misc import global_training_logs
-except ModuleNotFoundError:
-    global_training_logs = {}
 
 try:
     import moe_router_loss_ops
@@ -409,7 +401,6 @@ class MOELayer(nn.Layer):
         shared_experts: Optional[List[nn.Layer]] = None,
         group: Group = None,
         recompute=False,
-        enable_logging: bool = False,
         k=2,
         enable_bpr: bool = False,
         all_to_all_dropout=0,
@@ -434,7 +425,6 @@ class MOELayer(nn.Layer):
         self.group = group
         self.k = k
         self.all_to_all_dropout = all_to_all_dropout
-        self.enable_logging = enable_logging
         self.use_correction_bias = moe_statics is not None
         self.moe_statics = moe_statics
         if self.use_correction_bias:
@@ -950,7 +940,6 @@ class MOELayer(nn.Layer):
         dispatch_tokens_mask=None,
         prefix="",
     ):
-        log = {}
         router_loss, l_aux, orthogonal_loss, zloss = 0.0, None, None, None
         if self.gate.config.moe_aux_loss_lambda:
             l_aux = self.gate._cal_aux_loss(
@@ -973,29 +962,6 @@ class MOELayer(nn.Layer):
             zloss = self.gate._cal_z_loss(gate_logits, tokens_type_mask)
             router_loss += self.gate.moe_z_loss_lambda[token_type or 0] * zloss
 
-        tracer = framework._dygraph_tracer()
-        if self.enable_logging and global_training_logs_enabled() and tracer._has_grad:
-            if l_aux is not None:
-                log[f"aux_loss_layer_{self.layer_idx}"] = l_aux
-
-            if orthogonal_loss is not None:
-                log[f"orthogonal_loss_layer_{self.layer_idx}"] = orthogonal_loss
-
-            if zloss is not None:
-                log[f"zloss_layer_{self.layer_idx}"] = zloss
-
-            global_training_logs.update(
-                **log,
-                **{
-                    k.replace(f"_layer_{self.layer_idx}", ""): v for k, v in log.items()
-                },
-            )
-            global_training_logs.update(
-                **{
-                    prefix + "_" + k.replace(f"_layer_{self.layer_idx}", ""): v
-                    for k, v in log.items()
-                }
-            )
         return router_loss
 
     def calc_router_loss_and_logging(
@@ -1086,93 +1052,6 @@ class MOELayer(nn.Layer):
                     self.gate.num_experts_tensor,
                     self.group_experts,
                     self.layer_idx,
-                )
-
-            if self.enable_logging and global_training_logs_enabled():
-                seqlen = gate_logits.shape[0]
-                num_active = paddle.count_nonzero(combine_weights)
-                gate_experts_per_token = num_active.item() / seqlen
-
-                if token_type_ids is not None:
-                    token_type_ids = token_type_ids.reshape([-1])
-                    combine_weights_type_0 = combine_weights[token_type_ids == 0]
-                    if combine_weights_type_0.size:
-                        gate_expert_per_token_type_0 = (
-                            paddle.count_nonzero(combine_weights_type_0).item()
-                            / combine_weights_type_0.shape[0]
-                        )
-                        global_training_logs.update(
-                            experts_per_token_text=gate_expert_per_token_type_0,
-                        )
-
-                    combine_weights_type_1 = combine_weights[token_type_ids == 1]
-                    if combine_weights_type_1.size:
-                        gate_expert_per_token_type_1 = (
-                            paddle.count_nonzero(combine_weights_type_1).item()
-                            / combine_weights_type_1.shape[0]
-                        )
-                        global_training_logs.update(
-                            experts_per_token_image=gate_expert_per_token_type_1,
-                        )
-
-                ce = (
-                    (-F.softmax(gate_logits, -1) * F.log_softmax(gate_logits, -1))
-                    .sum(-1)
-                    .mean(0)
-                )
-                _log = {
-                    f"gate_prob_ce_layer_{self.layer_idx}": ce.item(),
-                    f"experts_per_token_layer_{self.layer_idx}": gate_experts_per_token,
-                }
-                global_training_logs.update(
-                    **_log,
-                    **{
-                        k.replace(f"_layer_{self.layer_idx}", ""): v
-                        for k, v in _log.items()
-                    },
-                )
-        else:
-            seqlen = dispatch_mask.shape[0]
-            dispatch_mask = dispatch_mask.unbind(-1)
-            top1_gate_experts_per_token = (
-                paddle.cast(dispatch_mask[0], dtype="float32").sum() / seqlen
-            )
-            if (
-                self.enable_logging
-                and global_training_logs_enabled()
-                and len(dispatch_mask) == 2
-            ):
-                top2_gate_experts_per_token = (
-                    paddle.cast(dispatch_mask[1], dtype="float32").sum() / seqlen
-                )
-                leakage_experts_per_token = (
-                    paddle.cast(
-                        (~dispatch_mask[0]) & (~dispatch_mask[1]), dtype="float32"
-                    ).sum()
-                    / seqlen
-                )
-                experts_per_token = (
-                    top1_gate_experts_per_token + top2_gate_experts_per_token
-                )
-                global_training_logs.update(
-                    experts_per_token=experts_per_token.detach(),
-                    top1_experts_per_token=top1_gate_experts_per_token.detach(),
-                    top2_experts_per_token=top2_gate_experts_per_token.detach(),
-                    leakage_experts_per_token=leakage_experts_per_token.detach(),
-                )
-            elif (
-                self.enable_logging
-                and global_training_logs_enabled()
-                and len(dispatch_mask) == 1
-            ):
-                experts_per_token = top1_gate_experts_per_token
-                leakage_experts_per_token = (
-                    paddle.cast(~dispatch_mask[0], dtype="float32").sum() / seqlen
-                )
-                global_training_logs.update(
-                    experts_per_token=experts_per_token.detach(),
-                    top1_experts_per_token=top1_gate_experts_per_token.detach(),
-                    leakage_experts_per_token=leakage_experts_per_token.detach(),
                 )
 
         return router_loss
@@ -1435,7 +1314,6 @@ class MOELayerAuto(MOELayer):
         shared_experts: Optional[List[nn.Layer]] = None,
         group: Group = None,
         recompute=False,
-        enable_logging: bool = False,
         k=2,
         enable_pbr: bool = False,
         all_to_all_dropout=0,
@@ -1462,7 +1340,6 @@ class MOELayerAuto(MOELayer):
         self.group = group
         self.k = k
         self.all_to_all_dropout = all_to_all_dropout
-        self.enable_logging = enable_logging
         is_mp_moe = (
             hasattr(fleet.fleet, "_hcg")
             and group is fleet.get_hybrid_communicate_group().get_model_parallel_group()
