@@ -246,8 +246,8 @@ def test_sft():
     prepare_data()
     yaml_path = os.path.join(SFT_CONFIG_PATH, "run_sft_8k.yaml")
     config = default_args(yaml_path).copy()
-    config["max_steps"] = 1
-    config["save_steps"] = 1
+    config["max_steps"] = 3
+    config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
     config["virtual_pp_degree"] = 1
 
@@ -255,7 +255,7 @@ def test_sft():
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    base_loss = 14.33841
+    base_loss = 6.741953
     assert_loss(base_loss)
 
 
