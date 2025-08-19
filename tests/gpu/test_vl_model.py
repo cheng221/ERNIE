@@ -21,6 +21,8 @@ import requests
 import time
 import signal
 import pytest
+import tarfile
+import urllib.request
 
 
 import allure
@@ -45,6 +47,23 @@ def clean_output_dir():
         shutil.rmtree(OUTPUT_DIR)
     if os.path.exists(LOG_DIR):
         shutil.rmtree(LOG_DIR)
+
+
+def prepare_data():
+    data_dir = "examples/data"
+    tar_path = os.path.join(data_dir, "DoclingMatix.tar.gz")
+    url = "https://paddleformers.bj.bcebos.com/datasets/DoclingMatix.tar.gz"
+    os.makedirs(data_dir, exist_ok=True)
+    if not os.path.exists(tar_path):
+        print("Downloading DoclingMatix.tar.gz...")
+        urllib.request.urlretrieve(url, tar_path)
+        print("Download completed.")
+        print("Extracting files...")
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall(path=data_dir)
+        print("Extraction completed.")
+    else:
+        print("DoclingMatix datasets already exists.")
 
 
 def default_args(yaml_path):
@@ -224,6 +243,7 @@ def attach_log_file():
 
 def test_sft():
     clean_output_dir()
+    prepare_data()
     yaml_path = os.path.join(SFT_CONFIG_PATH, "run_sft_8k.yaml")
     config = default_args(yaml_path).copy()
     config["max_steps"] = 1
