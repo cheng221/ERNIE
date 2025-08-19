@@ -29,7 +29,7 @@ from paddle.distributed.auto_parallel.pipelining.schedules import (
 from paddle.distributed.auto_parallel.pipelining.stage import PipelineStage
 
 from paddle.distributed.fleet.utils import recompute
-
+from paddle.nn.functional.flash_attention import flash_attention
 
 from models.moe.moe_utils_auto import get_mesh
 
@@ -39,7 +39,6 @@ from .modeling_auto import (
     ErniePretrainedModelAuto,
     LayerNorm,
     RMSNorm,
-    FusedLayerNorm,
     ErniePretrainingCriterion,
     ErnieLMHead,
 )
@@ -48,15 +47,6 @@ from paddle.distributed import in_auto_parallel_align_mode
 
 
 logger = logging.getLogger(__name__)
-
-try:
-    from paddle.nn.functional.flash_attention import flash_attention
-
-    logger.warning(
-        "Use flash attention in scaled-dot-product. Attention mask is deprecated"
-    )
-except (ImportError, ModuleNotFoundError):
-    flash_attention = None
 
 
 __all__ = [
@@ -275,8 +265,7 @@ class ErnieDecoderLayerAutoPP(nn.Layer):
         self.layer = ErnieDecoderLayerAuto(config, layer_idx, ipp)
 
         Norm = RMSNorm if config.use_rmsnorm else LayerNorm
-        if not config.use_rmsnorm and config.fuse_ln:
-            Norm = FusedLayerNorm
+
         if self.layer_idx == self.config.num_hidden_layers - 1:
             self.norm = Norm(config, -1)
             self.lm_head = ErnieLMHead(config)
@@ -556,10 +545,7 @@ class ErnieForCausalLMAutoPP(ErniePretrainedModelAuto):
             else:
                 logger.info("Use normal RMSNorm")
         else:
-            if self.config.fuse_ln:
-                logger.info("Use fusedLN")
-            else:
-                logger.info("Use normal LayerNorm")
+            logger.info("Use normal LayerNorm")
 
         decoder_layers = []
 

@@ -36,10 +36,7 @@ else
 fi
 
 
-export FLAGS_enable_fused_ffn_qkv_pass=1
-export FLAGS_enable_pir_api=1
 export FLAGS_enable_moe_utils=true
-export FLAGS_call_stack_level=2
 
 
 export PYTHONPATH=$PYTHONPATH:./ernie
@@ -48,4 +45,4 @@ python -m paddle.distributed.launch \
     --log_dir output/paddle_distributed_logs \
     --run_mode=collective \
     ${script:-ernie/pretrain_auto.py}  \
-    --config yamls/pretrain_96_auto.yaml
+    --config yamls/ERNIE-4p5-21B-A3B_auto/pretrain_8_auto.yaml
