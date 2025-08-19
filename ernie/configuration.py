@@ -13,7 +13,6 @@
 # limitations under the License.
 
 """ Ernie model configuration"""
-import copy
 import json
 from typing import Optional, Union
 
@@ -621,7 +620,7 @@ class Ernie4_5_VLMoeConfig(Ernie4_5_MoeConfig):
 
     def to_dict(self, saving_file=False):
         """to_dict"""
-        
+
         # call PretrainedConfig.to_dict method to preprocess the output config, like removing unsavable keys
         output = super().to_dict(saving_file=saving_file)
 
