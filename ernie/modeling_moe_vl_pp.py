@@ -169,13 +169,16 @@ class PipelinePretrainedModel(PipelinePretrainedModelBase):
         state_dict = PretrainedModel.state_dict(self, *args, **kwargs)
 
         self._set_pipeline_name_mapping()
-        assert len(self._single_to_pp_mapping) > 0, "The pipeline stage must have parameters!"
+        assert (
+            len(self._single_to_pp_mapping) > 0
+        ), "The pipeline stage must have parameters!"
 
         for k in list(state_dict.keys()):
             v = state_dict.pop(k)
             state_dict[self._pp_to_single_mapping[k]] = v
 
         return state_dict
+
 
 class ErniePretrainingCriterionPipe(ErniePretrainingCriterion):
     """
