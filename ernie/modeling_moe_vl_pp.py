@@ -1914,7 +1914,6 @@ class Ernie4_5_VLMoeForConditionalGenerationPipe(
     ):
         """add_vision_model"""
         self.vision_model = encoder
-        # self._set_modality_param_mapping()
 
     def add_image_preprocess(self, preprocess):
         """add image_preprocess"""
