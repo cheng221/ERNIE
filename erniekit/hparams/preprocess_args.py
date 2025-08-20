@@ -112,7 +112,7 @@ class InputIdsMassageArguments(BasePreprocessArguments):
     drop_untrainble_sample: bool = field(
         default=False, metadata={"help": "drop untrainable samples"}
     )
-    chat_template: str = field(default="ernie", metadata={"help": "chat template"})
+    chat_template: str = field(default="ernie_vl", metadata={"help": "chat template"})
 
     def __post_init__(self):
         if (
