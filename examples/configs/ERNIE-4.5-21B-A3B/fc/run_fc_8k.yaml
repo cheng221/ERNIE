@@ -1,9 +1,9 @@
 ### data
-train_dataset_type: "erniekit"
-eval_dataset_type: "erniekit"
-train_dataset_path: "./examples/data/sft-train.jsonl"
+train_dataset_type: "chatml"
+eval_dataset_type: "chatml"
+train_dataset_path: "./examples/data/function-call-train.jsonl"
 train_dataset_prob: "1.0"
-eval_dataset_path: "./examples/data/sft-eval.jsonl"
+eval_dataset_path: "./examples/data/function-call-eval.jsonl"
 eval_dataset_prob: "1.0"
 max_seq_len: 8192
 num_samples_each_epoch: 6000000
@@ -11,10 +11,8 @@ num_samples_each_epoch: 6000000
 ### model
 model_name_or_path: baidu/ERNIE-4.5-21B-A3B-Paddle
 moe_group: mp
-fine_tuning: LoRA
-lora_rank: 32
+fine_tuning: Full
 fuse_rope: True
-fuse_rms_norm: false
 use_sparse_head_and_loss_fn: True
 
 ### finetuning
@@ -27,8 +25,8 @@ distributed_dataloader: False
 dataloader_num_workers: 1
 batch_size: 1
 num_train_epochs: 1
-max_steps: 100
-max_evaluate_steps: 10000
+max_steps: 10
+max_evaluate_steps: 10
 eval_steps: 10000
 evaluation_strategy: steps
 save_steps: 10000000
@@ -38,12 +36,12 @@ logging_steps: 1
 release_grads: True
 gradient_accumulation_steps: 8
 logging_dir: ./vdl_log
-output_dir: ./output
+output_dir: ./fc_output
 disable_tqdm: True
 
 # train
 warmup_steps: 20
-learning_rate: 3.0e-4
+learning_rate: 1.0e-5
 lr_scheduler_type: cosine
 min_lr: 1.0e-6
 layerwise_lr_decay_bound: 1.0
@@ -56,12 +54,12 @@ adam_beta2: 0.95
 offload_optim: True
 
 # performance
-tensor_parallel_degree: 1
-pipeline_parallel_degree: 1
+tensor_parallel_degree: 4
+pipeline_parallel_degree: 2
 sharding_parallel_degree: 1
 sharding: stage1
 sequence_parallel: True
-pipeline_parallel_config: disable_partial_send_recv enable_clear_every_step_cache disable_batch_p2p_comm
+pipeline_parallel_config: enable_delay_scale_loss enable_release_grads disable_partial_send_recv
 recompute: True
 recompute_use_reentrant: True
 compute_type: bf16
@@ -83,7 +81,4 @@ amp_custom_black_list:
   - sin
   - cos
 unified_checkpoint: True
-unified_checkpoint_config: async_save
-
-# device
-device: xpu
+# unified_checkpoint_config: async_save

@@ -101,7 +101,7 @@ class ImageModificationProcessor(ProcessorBase):
         self.cls_token_id = vocab[self.cls_token]
         self.sep_token_id = vocab[self.sep_token]
         self.sft_shift_by_one = args.sft_shift_by_one
-        self.chat_template = "deepseek"
+        self.chat_template = "ernie_vl"
         self.should_shift_by_one = self.is_training and (
             self.is_pretraining or self.sft_shift_by_one
         )
@@ -526,7 +526,7 @@ class ImageModificationProcessor(ProcessorBase):
                 replace_token_id = self.cls_token_id
                 if self.chat_template == "ernie":
                     replace_token_id = self.cls_token_id
-                elif self.chat_template == "deepseek":
+                elif self.chat_template == "ernie_vl":
                     replace_token_id = self.sep_token_id
                 else:
                     raise NotImplementedError(

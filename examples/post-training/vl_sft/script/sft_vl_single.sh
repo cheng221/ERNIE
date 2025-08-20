@@ -129,7 +129,6 @@ python -m paddle.distributed.launch \
     --prefetch_factor 10 \
     --one_sample_in_one_seq true \
     --serialize_output false \
-    --chat_template deepseek \
     --render_timestamp true \
     --pp_need_data  true \
     --adam_beta1 0.9 \

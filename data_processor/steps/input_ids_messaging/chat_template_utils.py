@@ -35,7 +35,7 @@ def apply_chat_training_template(
     data, tokenizer, is_training, use_pic_id=True, save_to_disk=False, **kwargs
 ):
     """
-    apply_deepseek_chat_training_tempelate
+    apply_ernie_vl_chat_training_tempelate
     """
 
     # used special tokens
