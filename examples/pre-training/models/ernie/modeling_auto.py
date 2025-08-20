@@ -682,6 +682,147 @@ class LayerNorm(nn.LayerNorm):
             return super().forward(hidden_states)
 
 
+class RotaryEmbedding(nn.Layer):
+
+    def __init__(self, dim, max_position_embeddings=4096, base=10000):
+
+        super().__init__()
+        self.base = base
+        self.max_position_embeddings = max_position_embeddings
+        inv_freq = 1.0 / (
+            base ** (paddle.cast(paddle.arange(0, dim, 2), dtype="float32") / dim)
+        )
+
+        t = paddle.arange(max_position_embeddings, dtype="float32")
+        freqs = paddle.einsum("i,j->ij", t, inv_freq.cast("float32"))
+        emb = paddle.concat([freqs, freqs], axis=-1)
+
+        self.cos_cached = emb.cos()
+        self.sin_cached = emb.sin()
+
+        self._cast_to_low_precision = False
+        self._cast_to_low_precison = False
+
+    def forward(self, x, seq_len=None):
+
+        return (
+            self.cos_cached[:seq_len, :],
+            self.sin_cached[:seq_len, :],
+        )
+
+    @classmethod
+    def rotate_half(cls, x):
+
+        x1 = x[..., : x.shape[-1] // 2]
+        x2 = x[..., x.shape[-1] // 2 :]
+        return paddle.concat([-x2, x1], axis=-1)
+
+    @classmethod
+    def apply_rotary_pos_emb(cls, q, k, cos, sin, offset: int = 0, position_ids=None):
+        if position_ids is not None:
+            assert offset == 0, offset
+            cos = F.embedding(position_ids, cos)
+            sin = F.embedding(position_ids, sin)
+        else:
+            cos = cos.unsqueeze(0)
+            sin = sin.unsqueeze(0)
+        cos = cos[:, offset : q.shape[1] + offset, None, :]
+        sin = sin[:, offset : q.shape[1] + offset, None, :]
+
+        q_embed = paddle.add(
+            paddle.multiply(q, cos), paddle.multiply(cls.rotate_half(q), sin)
+        )
+        k_embed = paddle.add(
+            paddle.multiply(k, cos), paddle.multiply(cls.rotate_half(k), sin)
+        )
+        q_embed = q_embed.astype(q.dtype)
+        k_embed = k_embed.astype(k.dtype)
+        return q_embed, k_embed
+
+
+class RopeEmbeddingLegacy(nn.Layer):
+
+    def __init__(self, head_dim, compression_ratio=1.0, base=10000):
+        super().__init__()
+        self.head_dim = head_dim
+        self.compression_ratio = compression_ratio
+        self.base = base
+
+    def forward(self, seq_length, position_ids=None):
+
+        indices = paddle.arange(0, self.head_dim, 2, dtype="float32")
+        indices = 1 / self.base ** (indices / self.head_dim)
+        if position_ids is None:
+            position_ids = paddle.arange(0, seq_length, 1, dtype="float32").unsqueeze(1)
+            position_ids = position_ids / self.compression_ratio
+            sinusoid_inp = position_ids * indices.unsqueeze(0)
+        else:
+            position_ids = position_ids / self.compression_ratio
+            seq_length = position_ids.shape[-1]
+            sinusoid_inp = position_ids.unsqueeze(-1).astype(
+                "float32"
+            ) * indices.unsqueeze(0)
+        pos_emb = paddle.concat(
+            [paddle.sin(sinusoid_inp), paddle.cos(sinusoid_inp)], axis=-1
+        )
+        pos_emb = paddle.reshape(pos_emb, (-1, 1, seq_length, self.head_dim))
+        pos_emb.stop_gradient = True
+        return pos_emb
+
+    def apply_rotary(self, rp, q, k):
+
+        sin, cos = paddle.chunk(rp, 2, axis=-1)
+        sin_pos = paddle.reshape(paddle.stack([sin, sin], axis=-1), rp.shape)
+        cos_pos = paddle.reshape(paddle.stack([cos, cos], axis=-1), rp.shape)
+        rotate_half_q = paddle.reshape(
+            paddle.stack([-q[:, :, :, 1::2], q[:, :, :, 0::2]], axis=-1),
+            paddle.shape(q),
+        )
+        query = paddle.add(
+            paddle.multiply(q.astype("float32"), cos_pos),
+            paddle.multiply(rotate_half_q.astype("float32"), sin_pos),
+        )
+        rotate_half_k = paddle.reshape(
+            paddle.stack([-k[:, :, :, 1::2], k[:, :, :, 0::2]], axis=-1),
+            paddle.shape(k),
+        )
+        key = paddle.add(
+            paddle.multiply(k.astype("float32"), cos_pos),
+            paddle.multiply(rotate_half_k.astype("float32"), sin_pos),
+        )
+        return query, key
+
+    def forward_single(self, position_ids):
+
+        batch_size, seq_length = position_ids.shape[:2]
+        rope_emb = paddle.zeros(
+            (2, batch_size, seq_length, 1, self.head_dim), dtype="float32"
+        )
+        inv_freq = self.base ** (
+            -paddle.arange(0, self.head_dim, 2, dtype="float32") / self.head_dim
+        )
+        position_ids = position_ids.cast("float32")
+        position_ids = position_ids / self.compression_ratio
+        freqs = paddle.einsum("ij,k->ijk", position_ids.cast("float32"), inv_freq)
+        emb = paddle.stack([freqs, freqs], axis=-1).reshape(
+            (batch_size, seq_length, self.head_dim)
+        )
+        emb = paddle.unsqueeze(emb, 2)
+
+        rope_emb[0] = paddle.cos(emb)
+        rope_emb[1] = paddle.sin(emb)
+        return rope_emb
+
+    @staticmethod
+    def apply_rotary_single(x, rope_emb):
+
+        rotate_half_x = paddle.reshape(
+            paddle.stack([-x[:, :, :, 1::2], x[:, :, :, 0::2]], axis=-1),
+            paddle.shape(x),
+        )
+        return x * rope_emb[0] + rotate_half_x * rope_emb[1]
+
+
 class ErnieLinear(nn.Layer):
 
     def __init__(
@@ -862,6 +1003,18 @@ class ErnieAttentionAuto(nn.Layer):
                 self.hidden_size,
                 self.hidden_size,
                 bias_attr=config.use_bias,
+            )
+        if config.rope_reorder:
+            self.rotary_emb = RotaryEmbedding(
+                self.head_dim,
+                max_position_embeddings=config.max_position_embeddings,
+                base=config.rope_theta,
+            )
+        else:
+            self.rotary_emb = RopeEmbeddingLegacy(
+                self.head_dim,
+                compression_ratio=config.compression_ratio,
+                base=config.rope_theta,
             )
 
         self.config = config
