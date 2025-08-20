@@ -164,21 +164,6 @@ class PipelinePretrainedModel(PipelinePretrainedModelBase):
 
         return self._single_to_pp_mapping
 
-    # Rewrite state dict
-    def state_dict(self, *args, **kwargs):
-        state_dict = PretrainedModel.state_dict(self, *args, **kwargs)
-
-        self._set_pipeline_name_mapping()
-        assert (
-            len(self._single_to_pp_mapping) > 0
-        ), "The pipeline stage must have parameters!"
-
-        for k in list(state_dict.keys()):
-            v = state_dict.pop(k)
-            state_dict[self._pp_to_single_mapping[k]] = v
-
-        return state_dict
-
 
 class ErniePretrainingCriterionPipe(ErniePretrainingCriterion):
     """
@@ -1929,7 +1914,7 @@ class Ernie4_5_VLMoeForConditionalGenerationPipe(
     ):
         """add_vision_model"""
         self.vision_model = encoder
-        self._set_modality_param_mapping()
+        # self._set_modality_param_mapping()
 
     def add_image_preprocess(self, preprocess):
         """add image_preprocess"""
@@ -2015,3 +2000,21 @@ class Ernie4_5_VLMoeForConditionalGenerationPipe(
             logger.info(f"Freezing vision parameter: {name}")
             param.stop_gradient = True
         self.vision_model.config.freeze_vision = True
+
+    # Rewrite state dict
+    def state_dict(self, *args, **kwargs):
+        state_dict = PretrainedModel.state_dict(self, *args, **kwargs)
+
+        if self._modality_param_mapping is None:
+            self._set_modality_param_mapping()
+        if self._single_to_pp_mapping is None:
+            self._set_pipeline_name_mapping()
+        assert (
+            len(self._single_to_pp_mapping) > 0
+        ), "The pipeline stage must have parameters!"
+
+        for k in list(state_dict.keys()):
+            v = state_dict.pop(k)
+            state_dict[self._pp_to_single_mapping[k]] = v
+
+        return state_dict
