@@ -1,9 +1,10 @@
+# -----------环境变量----------------------#
 env:
     HOME: null
 
 # ---------------------------model args-------------------------------------------------#
 model_args:
-    model_name_or_path: model_configs/ERNIE-4p5-21B-A3B_auto
+    model_name_or_path: model_configs_auto/
     tokenizer_name: ./ernie/src/tokenizers/tokenizer_model
     output_dir: ./output/
     data_load_process_num: 40
@@ -16,7 +17,6 @@ model_args:
     global_logging_interval: 1
     model_config:
         multi_token_pred_depth: 0
-        use_ep_comm_overlap: false
         moe_logging: True
         moe_use_aux_free: true
 
@@ -41,15 +41,18 @@ trainer_args:
     adam_epsilon: 1e-8
     learning_rate: 2.2e-4
     min_lr: 2.2e-5
-
     global_batch_size: 2
     gradient_accumulation_steps: 1
     per_device_train_batch_size: 2
     per_device_eval_batch_size: 1
-
     lr_scheduler: wsd:231084
     decay_function: 1-sqrt
     max_grad_norm: 1.0
+
+    adaptive_norm_clip: 0
+    adaptive_norm_clip_ratio: 1.2
+    adaptive_norm_force_clear_state: 0
+    adaptive_norm_enable_record: 1
     use_async_save: True
 
     weight_decay: 0.1
@@ -59,6 +62,7 @@ trainer_args:
     fp16_opt_level: "O2"
     scale_loss: 4096
     seed: 666
+    use_train_part_sharding: 1
     pre_alloc_memory: 60
 
     tensor_parallel_degree: 4
@@ -85,6 +89,7 @@ trainer_args:
     save_sharded_model: True
     ignore_load_lr_and_optim: False
     metrics_output_path: ./output/paddle_distributed_logs/
+
     use_moe: true
     moe_group: mp
     log_global_grad_norm: True
