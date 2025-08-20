@@ -147,7 +147,8 @@ Required fields for DPO:
 
 ### SFT VL Dataset
 
-We provide [demo](../examples/data/) data for quick training. You can either use these samples or train with your own data.
+We provide demo data for quick training, please download the [image](https://paddleformers.bj.bcebos.com/datasets/DoclingMatix.tar.gz) or [video](
+https://paddleformers.bj.bcebos.com/datasets/NExTVideo.tar.gz) data according to your needs and unzip it to the [demo](../examples/data/)  data directory. You can either use these samples or train with your own data.
 
 Required fields for SFT VL:
 
