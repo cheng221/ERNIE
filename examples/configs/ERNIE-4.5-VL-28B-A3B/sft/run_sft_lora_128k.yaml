@@ -24,14 +24,14 @@ train_dataset_path: "examples/data/sft_vl-train_demo1.json"
 train_dataset_prob: "1.0"
 text_dataset_path: ""
 text_dataset_prob: ""
-max_seq_len: 8192
+max_seq_len: 131072
 num_samples_each_epoch: 10000000
 modality_ratio: "[1,1]"
 
 # preprocess
 chat_template: "deepseek"
 variable_resolution: 1
-pad_to_max_seqlen: 8192
+pad_to_max_seqlen: 131072
 render_timestamp: true
 serialize_output: false
 one_sample_in_one_seq: true

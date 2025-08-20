@@ -428,6 +428,7 @@ def run_vl_sft(
     cfg.use_recompute_loss_fn = model_args.use_recompute_loss_fn
     cfg.use_sparse_head_and_loss_fn = model_args.use_sparse_head_and_loss_fn
     cfg.use_fused_head_and_loss_fn = model_args.use_fused_head_and_loss_fn
+    cfg.moe_multimodal_dispatch_use_allgather = model_args.moe_multimodal_dispatch_use_allgather
     cfg.use_mem_eff_attn = model_args.use_mem_eff_attn
     cfg.use_flash_attn_with_mask = model_args.use_flash_attn_with_mask
     cfg.hidden_dropout_prob = finetuning_args.hidden_dropout_prob
