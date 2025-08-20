@@ -428,7 +428,9 @@ def run_vl_sft(
     cfg.use_recompute_loss_fn = model_args.use_recompute_loss_fn
     cfg.use_sparse_head_and_loss_fn = model_args.use_sparse_head_and_loss_fn
     cfg.use_fused_head_and_loss_fn = model_args.use_fused_head_and_loss_fn
-    cfg.moe_multimodal_dispatch_use_allgather = model_args.moe_multimodal_dispatch_use_allgather
+    cfg.moe_multimodal_dispatch_use_allgather = (
+        model_args.moe_multimodal_dispatch_use_allgather
+    )
     cfg.use_mem_eff_attn = model_args.use_mem_eff_attn
     cfg.use_flash_attn_with_mask = model_args.use_flash_attn_with_mask
     cfg.hidden_dropout_prob = finetuning_args.hidden_dropout_prob
@@ -456,7 +458,10 @@ def run_vl_sft(
                 finetuning_args.pp_need_data
             ), "balanced image preprocess must use with pp_need_data"
 
-        if finetuning_args.from_scratch and args.weight_quantize_algo is None:
+        if (
+            finetuning_args.from_scratch
+            and finetuning_args.weight_quantize_algo is None
+        ):
             model = Ernie4_5_VLMoeForConditionalGenerationPipe(cfg)
 
         else:
@@ -467,7 +472,10 @@ def run_vl_sft(
         if finetuning_args.pp_need_data_degree:
             model.set_pp_need_data_degree(finetuning_args.pp_need_data_degree)
     else:
-        if finetuning_args.from_scratch and args.weight_quantize_algo is None:
+        if (
+            finetuning_args.from_scratch
+            and finetuning_args.weight_quantize_algo is None
+        ):
             model = Ernie4_5_VLMoeForConditionalGeneration(cfg)
         else:
             model = Ernie4_5_VLMoeForConditionalGeneration.from_pretrained(
