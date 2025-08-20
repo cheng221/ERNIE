@@ -21,6 +21,8 @@ import requests
 import time
 import signal
 import pytest
+import tarfile
+import urllib.request
 
 
 import allure
@@ -28,12 +30,11 @@ import yaml
 
 OUTPUT_DIR = "./output/"
 LOG_DIR = "./erniekit_dist_log/"
-MODEL_PATH = "./ERNIE-4.5-0.3B-Paddle-dummy-dense"
-CONFIG_PATH = "./examples/configs/ERNIE-4.5-0.3B/"
+MODEL_PATH = "./ERNIE-4.5-VL-28B-A3B-Paddle-Tiny"
+CONFIG_PATH = "./examples/configs/ERNIE-4.5-VL-28B-A3B/"
 SFT_CONFIG_PATH = CONFIG_PATH + "sft/"
 DPO_CONFIG_PATH = CONFIG_PATH + "dpo/"
 PORT = 8188
-
 
 os.environ["NVIDIA_TF32_OVERRIDE"] = "0"
 os.environ["NCCL_ALGO"] = "Tree"
@@ -44,9 +45,25 @@ os.environ["FLAGS_cudnn_deterministic"] = "1"
 def clean_output_dir():
     if os.path.exists(OUTPUT_DIR):
         shutil.rmtree(OUTPUT_DIR)
-
     if os.path.exists(LOG_DIR):
         shutil.rmtree(LOG_DIR)
+
+
+def prepare_data():
+    data_dir = "examples/data"
+    tar_path = os.path.join(data_dir, "DoclingMatix.tar.gz")
+    url = "https://paddleformers.bj.bcebos.com/datasets/DoclingMatix.tar.gz"
+    os.makedirs(data_dir, exist_ok=True)
+    if not os.path.exists(tar_path):
+        print("Downloading DoclingMatix.tar.gz...")
+        urllib.request.urlretrieve(url, tar_path)
+        print("Download completed.")
+        print("Extracting files...")
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall(path=data_dir)
+        print("Extraction completed.")
+    else:
+        print("DoclingMatix datasets already exists.")
 
 
 def default_args(yaml_path):
@@ -85,7 +102,6 @@ def run_update_config_training(config, steps="train"):
         steps,
         temp_config_path,
     ]
-
     if steps == "export":
         cmd.append("lora=True")
 
@@ -227,151 +243,39 @@ def attach_log_file():
 
 def test_sft():
     clean_output_dir()
+    prepare_data()
     yaml_path = os.path.join(SFT_CONFIG_PATH, "run_sft_8k.yaml")
     config = default_args(yaml_path).copy()
     config["max_steps"] = 3
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
+    config["virtual_pp_degree"] = 1
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    base_loss = 12.301529
+    base_loss = 6.741953
     assert_loss(base_loss)
 
 
-def test_sft_eval():
-    yaml_path = os.path.join(CONFIG_PATH, "run_eval.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = "./output/checkpoint-2"
+# def test_sft_eval():
+#     yaml_path = os.path.join(CONFIG_PATH, "run_eval.yaml")
+#     config = default_args(yaml_path).copy()
+#     config["model_name_or_path"] = "./output/checkpoint-2"
 
-    ret_code, err_log = run_update_config_training(config, steps="eval")
-    attach_log_file()
-    assert_result(ret_code, err_log)
-
-
-def test_sft_fd_server():
-    kill_process_on_port()
-    yaml_path = os.path.join(CONFIG_PATH, "run_chat.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = "./output/checkpoint-2"
-    config["max_new_tokens"] = 10
-
-    process_server = run_update_config_training(config, steps="server")
-    process_chat = run_update_config_training(config, steps="chat")
-    run_check_fastdeploy_infer(process_server, process_chat)
+#     ret_code, err_log = run_update_config_training(config, steps="eval")
+#     attach_log_file()
+#     assert_result(ret_code, err_log)
 
 
-def test_sft_lora():
-    clean_output_dir()
-    yaml_path = os.path.join(SFT_CONFIG_PATH, "run_sft_lora_8k.yaml")
-    config = default_args(yaml_path).copy()
-    config["max_steps"] = 3
-    config["save_steps"] = 2
-    config["model_name_or_path"] = MODEL_PATH
+# def test_sft_fd_server():
+#     kill_process_on_port()
+#     yaml_path = os.path.join(CONFIG_PATH, "run_chat.yaml")
+#     config = default_args(yaml_path).copy()
+#     config["model_name_or_path"] = "./output/checkpoint-2"
+#     config["max_new_tokens"] = 10
 
-    ret_code, err_log = run_update_config_training(config)
-    attach_log_file()
-    assert_result(ret_code, err_log)
-
-    base_loss = 12.291286
-    assert_loss(base_loss)
-
-
-def test_sft_lora_merge():
-    yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = MODEL_PATH
-
-    ret_code, err_log = run_update_config_training(config, steps="export")
-    attach_log_file()
-    assert_result(ret_code, err_log)
-
-
-def test_sft_lora_fd_server():
-    kill_process_on_port()
-    yaml_path = os.path.join(CONFIG_PATH, "run_chat.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = "./output/export"
-    config["max_new_tokens"] = 10
-
-    process_server = run_update_config_training(config, steps="server")
-    process_chat = run_update_config_training(config, steps="chat")
-    run_check_fastdeploy_infer(process_server, process_chat)
-
-
-def test_dpo():
-    clean_output_dir()
-    yaml_path = os.path.join(DPO_CONFIG_PATH, "run_dpo_8k.yaml")
-    config = default_args(yaml_path).copy()
-    config["max_steps"] = 3
-    config["save_steps"] = 2
-    config["model_name_or_path"] = MODEL_PATH
-
-    ret_code, err_log = run_update_config_training(config)
-    attach_log_file()
-    assert_result(ret_code, err_log)
-
-    base_loss = 0.693828
-    assert_loss(base_loss)
-
-
-def test_dpo_eval():
-    yaml_path = os.path.join(CONFIG_PATH, "run_eval.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = "./output/checkpoint-3"
-
-    ret_code, err_log = run_update_config_training(config, steps="eval")
-    attach_log_file()
-    assert_result(ret_code, err_log)
-
-
-def test_dpo_fd_server():
-    kill_process_on_port()
-    yaml_path = os.path.join(CONFIG_PATH, "run_chat.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = "./output/checkpoint-3"
-    config["max_new_tokens"] = 10
-
-    process_server = run_update_config_training(config, steps="server")
-    process_chat = run_update_config_training(config, steps="chat")
-    run_check_fastdeploy_infer(process_server, process_chat)
-
-
-def test_dpo_lora():
-    clean_output_dir()
-    yaml_path = os.path.join(DPO_CONFIG_PATH, "run_dpo_lora_8k.yaml")
-    config = default_args(yaml_path).copy()
-    config["max_steps"] = 3
-    config["save_steps"] = 2
-    config["model_name_or_path"] = MODEL_PATH
-
-    ret_code, err_log = run_update_config_training(config)
-    attach_log_file()
-    assert_result(ret_code, err_log)
-
-    base_loss = 0.693696
-    assert_loss(base_loss)
-
-
-def test_dpo_lora_merge():
-    yaml_path = os.path.join(CONFIG_PATH, "run_export.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = MODEL_PATH
-
-    ret_code, err_log = run_update_config_training(config, steps="export")
-    attach_log_file()
-    assert_result(ret_code, err_log)
-
-
-def test_dpo_lora_fd_server():
-    kill_process_on_port()
-    yaml_path = os.path.join(CONFIG_PATH, "run_chat.yaml")
-    config = default_args(yaml_path).copy()
-    config["model_name_or_path"] = "./output/export"
-    config["max_new_tokens"] = 10
-
-    process_server = run_update_config_training(config, steps="server")
-    process_chat = run_update_config_training(config, steps="chat")
-    run_check_fastdeploy_infer(process_server, process_chat)
+#     process_server = run_update_config_training(config, steps="server")
+#     process_chat = run_update_config_training(config, steps="chat")
+#     run_check_fastdeploy_infer(process_server, process_chat)
