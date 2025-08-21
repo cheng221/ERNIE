@@ -250,12 +250,13 @@ def test_sft():
     config["save_steps"] = 2
     config["model_name_or_path"] = MODEL_PATH
     config["virtual_pp_degree"] = 1
+    config["max_seq_len"] = 32768
 
     ret_code, err_log = run_update_config_training(config)
     attach_log_file()
     assert_result(ret_code, err_log)
 
-    base_loss = 6.741953
+    base_loss = 11.546875
     assert_loss(base_loss)
 
 
