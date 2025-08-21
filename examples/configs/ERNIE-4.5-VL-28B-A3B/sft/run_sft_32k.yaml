@@ -19,7 +19,7 @@ moe_use_hard_gate: true
 moe_multimodal_dispatch_use_allgather: v2-alltoall-unpad-text
 
 # data
-train_dataset_path: "examples/data/sft_vl-train_demo1.json"
+train_dataset_path: "examples/data/sft_vl-train_demo1.jsonl"
 train_dataset_prob: "1.0"
 text_dataset_path: ""
 text_dataset_prob: ""
