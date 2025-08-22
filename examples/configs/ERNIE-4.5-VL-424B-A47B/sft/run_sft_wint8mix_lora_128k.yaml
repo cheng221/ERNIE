@@ -3,6 +3,7 @@ stage: VL-SFT
 
 # model
 model_name_or_path: baidu/ERNIE-4.5-VL-424B-A47B-Paddle/
+multimodal: true
 fuse_linear: true
 fuse_rms_norm: false
 use_flash_attention: 1
